@@ -4,7 +4,7 @@ cabal-version: 1.12
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: cbd1587303d23d0c505eee42246bda3a6d51cbf5165146d4243e0ae3e469a0eb
+-- hash: 0ca8c7c62b63ec8e7d14bce664bb9a99f8ade8ed1f747a07c6ee84f11e91b6b5
 
 name:           Backend
 version:        0.1.0.0
@@ -43,6 +43,7 @@ library
     , base-compat-batteries
     , bytestring
     , directory
+    , esqueleto
     , http-media
     , monad-logger
     , mtl
@@ -73,6 +74,7 @@ executable Backend-exe
     , base-compat-batteries
     , bytestring
     , directory
+    , esqueleto
     , http-media
     , monad-logger
     , mtl
@@ -104,6 +106,7 @@ test-suite Backend-test
     , base-compat-batteries
     , bytestring
     , directory
+    , esqueleto
     , http-media
     , monad-logger
     , mtl

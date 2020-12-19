@@ -39,6 +39,7 @@ dependencies:
 - persistent-postgresql
 - monad-logger
 - transformers
+- esqueleto
 
 library:
   source-dirs: src

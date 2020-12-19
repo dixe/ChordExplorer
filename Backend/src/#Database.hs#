@@ -82,6 +82,11 @@ fetchChordsDB = do
   return $ map fromDBChordEntity chords
 
 
+
+
+
+
+
 createChordDB :: Chord -> IO Int64
 createChordDB chord =
   let (dbChord, tags) = toDBChord chord
