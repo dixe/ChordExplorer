@@ -79,10 +79,33 @@ fetchChordsDB' = runAction localConnString (selectList [] [])
 
 fetchChordsDB :: IO [Chord]
 fetchChordsDB = do
-  chords <- liftIO fetchChordsDB'
-  return $ map fromDBChordEntity chords
+  chords <- liftIO $ fetchChordsDB'
+  fillChordsWthTags chords (map fromDBChordEntity chords)
 
 
+-- TODO convert to single call that joins with chordId and get all rows at the same time, then add tags to chords from rows
+-- TODO this might be ineffiecient when we have lots of chords and tags
+fillChordsWthTags :: [Entity DbChord] -> [[DbTag] -> Chord] -> IO [Chord]
+fillChordsWthTags chords funs =
+  case chords of
+    [] -> return []
+    (c:cs) ->
+      case funs of
+        [] -> return []
+        (f:fs) -> do
+          res <- liftIO $ fillChordWithTags c f
+          tail <- fillChordsWthTags cs fs
+          return $ res : tail
+
+toIO :: a -> IO a
+toIO a = do
+  return a
+
+
+fillChordWithTags :: Entity DbChord -> ([DbTag] -> Chord) -> IO Chord
+fillChordWithTags chord createF = do
+  tags <- fetchTagsForChord $ fromSqlKey (entityKey chord)
+  return $ createF tags
 
 
 
@@ -139,12 +162,12 @@ fromDBTag (DbTag name) = unpack name
 fromDBChord :: Int64 -> DbChord -> [DbTag] -> Chord
 fromDBChord id (DbChord name svg) tags = Chord id (unpack name) (unpack svg) (map fromDBTag tags)
 
-fromDBChordEntity :: Entity DbChord -> Chord
-fromDBChordEntity e =
+fromDBChordEntity :: Entity DbChord -> [DbTag] -> Chord
+fromDBChordEntity e tags =
   let key = entityKey e
       chord = entityVal e
   in
-    fromDBChord (fromSqlKey  key) chord []
+    fromDBChord (fromSqlKey  key) chord tags
 
 toDBTag :: String -> DbTag
 toDBTag tag = DbTag $ pack tag
