@@ -25,4 +25,13 @@ PTH.share [PTH.mkPersist PTH.sqlSettings, PTH.mkMigrate "migrateAll"]  [PTH.pers
    DbChord sql=chords
        name Text
        deriving Show Read
+
+   DbTag sql=tags
+      name Text
+      UniqueName name
+      deriving Show Read Eq
+
+  DbChordToTag sql=chord_to_tag
+     chordId DbChordId
+     tagId DbTagId
 |]

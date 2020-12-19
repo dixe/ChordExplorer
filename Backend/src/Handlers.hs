@@ -34,7 +34,6 @@ fetchChordsHandler = do
   return chords
 
 
-
 createChordHandler :: Chord -> Handler Int64
 createChordHandler c = do
   liftIO $ putStrLn "create chord"
