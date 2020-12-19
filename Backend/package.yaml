@@ -1,0 +1,66 @@
+name:                Backend
+version:             0.1.0.0
+github:              "githubuser/Backend"
+license:             BSD3
+author:              "Nfo"
+maintainer:          "dixe@github.com"
+copyright:           "2020 Nfo"
+
+extra-source-files:
+- README.md
+- ChangeLog.md
+
+# Metadata used when publishing your package
+# synopsis:            Short description of your package
+# category:            Web
+
+# To avoid duplicated efforts in documentation and dealing with the
+# complications of embedding Haddock markup inside cabal files, it is
+# common to point users to the README.md file.
+description:         Please see the README on GitHub at <https://github.com/githubuser/Backend#readme>
+
+dependencies:
+- base >= 4.7 && < 5
+- servant-server
+- text
+- servant
+- mtl
+- aeson
+- attoparsec
+- wai
+- directory
+- warp
+- http-media
+- string-conversions
+- bytestring
+- base-compat-batteries
+- persistent
+- persistent-template
+- persistent-postgresql
+- monad-logger
+- transformers
+
+library:
+  source-dirs: src
+
+executables:
+  Backend-exe:
+    main:                Main.hs
+    source-dirs:         app
+    ghc-options:
+    - -threaded
+    - -rtsopts
+    - -with-rtsopts=-N
+    dependencies:
+    - Backend
+
+tests:
+  Backend-test:
+    main:                Spec.hs
+    source-dirs:         test
+    ghc-options:
+    - -threaded
+    - -rtsopts
+    - -with-rtsopts=-N
+    dependencies:
+    - Backend
