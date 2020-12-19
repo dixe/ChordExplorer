@@ -6,6 +6,8 @@ import Html.Attributes exposing (class, href)
 import Element exposing (..)
 import Element.Events exposing (..)
 import Element.Font as Font
+import Element.Input exposing(button)
+import List
 
 import Debug exposing (todo)
 import LayoutHelpers as LH
@@ -13,6 +15,7 @@ import LayoutHelpers as LH
 
 viewMain : Model -> Html Msg
 viewMain model =
+
     Element.layout
         [ Font.size 20
         ]
@@ -21,5 +24,33 @@ viewMain model =
             [
              LH.header
             , LH.spacerLine
-            , text "What ever bab"
+            , viewModel model
             ]
+
+
+viewModel : Model -> Element Msg
+viewModel model =
+    case model.status of
+        SuccessAll chords -> frontPage
+        Failure err -> text err
+        Loading ->  text "Loading"
+        LoadedChords -> chordsView model.chordList
+        None -> frontPage
+
+
+frontPage : Element Msg
+frontPage = row [width fill] [
+             column [height fill, width <| fillPortion 5] [button (LH.buttonLayout ++ [height fill, centerX]) {label = text "Browse chords", onPress = Just LoadingChords }]
+            ,column [height fill, width <| fillPortion 5] [button (LH.buttonLayout ++ [centerX]) {label = text "Create chords", onPress = Nothing }]
+            ]
+
+
+
+chordsView : (List Chord) -> Element Msg
+chordsView chords = wrappedRow [] (List.map viewChord chords)
+
+viewChord : Chord -> Element Msg
+viewChord c = column [] [ html c.svg, text c.name, viewTags c.tags]
+
+viewTags : List String -> Element Msg
+viewTags tags = row [] (List.map text tags)
