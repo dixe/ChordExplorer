@@ -69,7 +69,8 @@ fetchTagsForChord cid =  runAction localConnString selectAction
     selectAction :: SqlPersistT (LoggingT IO) ([DbTag])
     selectAction = (fmap entityVal) <$>
                    (select . from $ \ (InnerJoin chord_to_tag tags)-> do
-                       on (chord_to_tag ^. DbTagId ==. tags ^. DbTagId)
+                       on (chord_to_tag ^. DbChordToTagTagId ==. tags ^. DbTagId)
+                       where_ (chord_to_tag ^. DbChordToTagChordId ==. val (toSqlKey cid))
                        return tags)
 
 
@@ -80,6 +81,11 @@ fetchChordsDB :: IO [Chord]
 fetchChordsDB = do
   chords <- liftIO fetchChordsDB'
   return $ map fromDBChordEntity chords
+
+
+
+
+
 
 
 createChordDB :: Chord -> IO Int64
