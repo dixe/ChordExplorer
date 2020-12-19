@@ -39,9 +39,9 @@ import Handlers
 --SERVERS
 
 server :: Server ChordApi
-server = fetchChords
+server = fetchChordsHandler
   :<|> fetchChordHandler
-  :<|> createChord
+  :<|> createChordHandler
 
 
 chordAPI :: Proxy ChordApi

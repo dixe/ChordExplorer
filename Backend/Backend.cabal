@@ -4,7 +4,7 @@ cabal-version: 1.12
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: 8500539a350be97713601be4e708969e218d44fae66494e94f4e7d445f19d364
+-- hash: cbd1587303d23d0c505eee42246bda3a6d51cbf5165146d4243e0ae3e469a0eb
 
 name:           Backend
 version:        0.1.0.0
@@ -29,7 +29,6 @@ library
   exposed-modules:
       ApiType
       Database
-      DataConvert
       Handlers
       Schema
       Server

@@ -27,12 +27,16 @@ fetchChordHandler id = do
     Nothing -> Handler $ (throwE $ err401 { errBody = pack ("Could not find chord with ID: " ++ (show id))})
 
 
-fetchChords :: Handler [Chord]
-fetchChords = do
+fetchChordsHandler :: Handler [Chord]
+fetchChordsHandler = do
   liftIO $ putStrLn "chords"
-  return chords1
+  chords <- liftIO $ fetchChordsDB
+  return chords
 
 
-createChord :: Chord -> Handler Int64
-createChord c =
-  return 1
+
+createChordHandler :: Chord -> Handler Int64
+createChordHandler c = do
+  liftIO $ putStrLn "create chord"
+  uid <- liftIO $ createChordDB c
+  return uid

@@ -10,14 +10,16 @@
 
 module Database where
 
+import Prelude
+
 import Control.Monad.Logger (runStdoutLoggingT, MonadLogger, LoggingT)
 import Control.Monad.Reader (runReaderT, lift, liftIO)
 import Control.Monad.IO.Class (MonadIO)
-import Database.Persist (selectList, (==.), (<.), SelectOpt(..), Entity, get, insert)
+import Database.Persist (selectList, (==.), (<.), SelectOpt(..), Entity, get, insert, selectList, entityVal, entityKey)
 import Database.Persist.Postgresql (ConnectionString, withPostgresqlConn, runMigration, SqlPersistT, fromSqlKey, toSqlKey)
 import Data.Int (Int64)
+import Data.Text (pack, unpack)
 
-import DataConvert
 import Schema
 import ApiType
 
@@ -32,24 +34,47 @@ runAction connectionString action =
 migrateDB :: ConnectionString -> IO ()
 migrateDB connString = runAction connString (runMigration migrateAll)
 
-selectChords :: (MonadIO m) => SqlPersistT m [Entity DbChord]
-selectChords = selectList [] []
-
 
 fetchChordDB' ::  Int64 -> IO (Maybe DbChord)
-fetchChordDB' uid = do
-  runAction localConnString (get (toSqlKey uid))
-
-
+fetchChordDB' uid = runAction localConnString (get (toSqlKey uid))
 
 fetchChordDB :: Int64 -> IO (Maybe Chord)
 fetchChordDB uid = do
   maybeChord <- liftIO $ fetchChordDB' uid
   case maybeChord of
-    Just c -> return $ Just $ fromDBChord c
+    Just c -> return $ Just $ fromDBChord' uid c
     Nothing -> return Nothing
 
 
+fetchChordsDB' :: IO [Entity DbChord]
+fetchChordsDB' = runAction localConnString (selectList [] [])
 
-createChordDB :: DbChord -> IO Int64
-createChordDB chord = fromSqlKey <$> runAction localConnString (insert chord)
+fetchChordsDB :: IO [Chord]
+fetchChordsDB = do
+  chords <- liftIO fetchChordsDB'
+  return $ map fromDBChord chords
+
+
+createChordDB :: Chord -> IO Int64
+createChordDB chord =
+  let dbChord = toDBChord chord
+  in fromSqlKey <$> runAction localConnString (insert dbChord)
+
+
+
+--DATA CONVERTERS
+
+
+fromDBChord' :: Int64 -> DbChord -> Chord
+fromDBChord' id (DbChord name) = Chord id (unpack name) []
+
+fromDBChord :: Entity DbChord -> Chord
+fromDBChord e =
+  let key = entityKey e
+      chord = entityVal e
+  in
+    fromDBChord' (fromSqlKey  key) chord
+
+
+toDBChord :: Chord -> DbChord
+toDBChord (Chord id name tags) = DbChord (pack name)
