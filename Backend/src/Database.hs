@@ -137,7 +137,7 @@ fromDBTag :: DbTag -> String
 fromDBTag (DbTag name) = unpack name
 
 fromDBChord :: Int64 -> DbChord -> [DbTag] -> Chord
-fromDBChord id (DbChord name) tags = Chord id (unpack name) (map fromDBTag tags)
+fromDBChord id (DbChord name svg) tags = Chord id (unpack name) (unpack svg) (map fromDBTag tags)
 
 fromDBChordEntity :: Entity DbChord -> Chord
 fromDBChordEntity e =
@@ -150,4 +150,4 @@ toDBTag :: String -> DbTag
 toDBTag tag = DbTag $ pack tag
 
 toDBChord :: Chord -> (DbChord, [DbTag])
-toDBChord (Chord id name tags) = (DbChord (pack name), map toDBTag tags)
+toDBChord (Chord id name svg tags) = (DbChord (pack name) (pack svg), map toDBTag tags)

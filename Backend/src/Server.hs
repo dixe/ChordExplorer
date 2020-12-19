@@ -27,6 +27,7 @@ import GHC.Generics
 import Network.HTTP.Media ((//), (/:))
 import Network.Wai
 import Network.Wai.Handler.Warp
+import Network.Wai.Middleware.Cors
 import Servant
 import Servant.Server
 import System.Directory
@@ -48,4 +49,4 @@ chordAPI :: Proxy ChordApi
 chordAPI = Proxy
 
 app1 :: Application
-app1 = serve chordAPI server
+app1 = simpleCors $ serve chordAPI server

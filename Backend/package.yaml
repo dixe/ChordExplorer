@@ -40,6 +40,8 @@ dependencies:
 - monad-logger
 - transformers
 - esqueleto
+- wai-cors
+
 
 library:
   source-dirs: src

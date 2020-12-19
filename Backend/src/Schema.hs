@@ -24,6 +24,7 @@ import           Data.Text (Text)
 PTH.share [PTH.mkPersist PTH.sqlSettings, PTH.mkMigrate "migrateAll"]  [PTH.persistLowerCase|
    DbChord sql=chords
        name Text
+       svgBase64 Text
        deriving Show Read
 
    DbTag sql=tags

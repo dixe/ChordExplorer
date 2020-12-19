@@ -4,7 +4,7 @@ cabal-version: 1.12
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: 0ca8c7c62b63ec8e7d14bce664bb9a99f8ade8ed1f747a07c6ee84f11e91b6b5
+-- hash: 892d9326526e1e92902e596c45577b5e611ed94e7b5b9f4181e65e06afe2ea6a
 
 name:           Backend
 version:        0.1.0.0
@@ -56,6 +56,7 @@ library
     , text
     , transformers
     , wai
+    , wai-cors
     , warp
   default-language: Haskell2010
 
@@ -87,6 +88,7 @@ executable Backend-exe
     , text
     , transformers
     , wai
+    , wai-cors
     , warp
   default-language: Haskell2010
 
@@ -119,5 +121,6 @@ test-suite Backend-test
     , text
     , transformers
     , wai
+    , wai-cors
     , warp
   default-language: Haskell2010

@@ -41,13 +41,10 @@ type CreateApi =
 data Chord = Chord {
   id :: Int64,
   name :: String,
+  svgBase64 :: String,
   tags :: [String]
   } deriving (Eq, Show, Generic)
 
 instance ToJSON Chord
 
 instance FromJSON Chord
-
-
-chords1 :: [Chord]
-chords1 = [ Chord 1 "C" ["basic", "open"], Chord 2"E" ["basic", "open"]]
