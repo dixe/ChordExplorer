@@ -38,12 +38,44 @@ type alias Model =
 
 
 type alias ImgInfo =
-    { x : Int, y : Int, lineWidth : Int, width : Int, height : Int, stringSpace : Int, fretSpace : Int, numStrings : Int, numFrets : Int }
+    { x : Float
+    , y : Float
+    , lineWidth : Float
+    , width : Float
+    , height : Float
+    , stringSpace : Float
+    , fretSpace : Float
+    , numStrings : Int
+    , numFrets : Int
+    , diameter : Float
+    }
 
 
 type alias Pos =
     { x : Float, y : Float }
 
 
+type alias StringNum =
+    Int
+
+
+type alias FretNum =
+    Int
+
+
+type FretType
+    = Play
+    | Mute
+
+
+
+-- String and Fret num ar 0 indexed and counted from upper left corner
+-- So frets are "normal" but strings reversed
+
+
+type Fret
+    = Fret StringNum FretNum FretType
+
+
 type alias SvgModel =
-    { info : ImgInfo, clickPos : Maybe Pos }
+    { info : ImgInfo, clickPos : Maybe Pos, frets : List Fret }

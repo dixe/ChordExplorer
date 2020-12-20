@@ -9,7 +9,7 @@ import Html exposing (..)
 import Http
 import Json.Decode exposing (Decoder, decodeString, errorToString, field, int, list, map3, string)
 import Layout exposing (viewMain)
-import SvgChordLogic exposing (initSvgModel)
+import SvgChordLogic exposing (..)
 import Task
 import Types exposing (..)
 
@@ -54,7 +54,7 @@ updateSvgModelClick : Float -> Float -> Maybe SvgModel -> Maybe SvgModel
 updateSvgModelClick x y svgModel =
     case svgModel of
         Just model ->
-            Just { model | clickPos = Just { x = x, y = y } }
+            Just (modelClicked { x = x, y = y } model)
 
         Nothing ->
             Nothing

@@ -71,9 +71,19 @@ stringToSvg base64 =
             Err err
 
 
+
+-- MDN PageX define this as float
+-- https://developer.mozilla.org/en-US/docs/Web/API/MouseEvent/pageX
+
+
 offsetX : Decoder Float
 offsetX =
     field "offsetX" float
+
+
+
+-- MDN PageY define this as float
+--https://developer.mozilla.org/en-US/docs/Web/API/MouseEvent/pageY
 
 
 offsetY : Decoder Float
