@@ -24,21 +24,20 @@ createChordView model =
 
 getRenderNodes : SvgModel -> List (Svg Msg)
 getRenderNodes model =
-    List.concatMap (renderFret model.info) model.frets
+    List.concatMap (renderFret model.info) (getFretsPos model.info model.frets)
 
 
-renderFret : ImgInfo -> Fret -> List (Svg Msg)
-renderFret info fret =
-    let
-        pos =
-            getFretPos info fret
-    in
-    case getFretType fret of
-        Play ->
-            renderPlay pos info.diameter
+renderFret : ImgInfo -> ( Fret, Pos ) -> List (Svg Msg)
+renderFret info ( fret, pos ) =
+    case fret of
+        Open ->
+            renderOpen pos info.diameter
 
         Mute ->
             renderMute info pos
+
+        Fret fn ->
+            renderPlay pos info.diameter
 
 
 renderPlay : Pos -> Float -> List (Svg Msg)
@@ -54,6 +53,11 @@ renderPlay pos dia =
         ]
         []
     ]
+
+
+renderOpen : Pos -> Float -> List (Svg Msg)
+renderOpen pos dia =
+    renderPlay pos dia
 
 
 renderMute : ImgInfo -> Pos -> List (Svg Msg)

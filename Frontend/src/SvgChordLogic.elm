@@ -1,4 +1,4 @@
-module SvgChordLogic exposing (getFretPos, getFretType, initSvgModel, modelClicked)
+module SvgChordLogic exposing (getFretsPos, initSvgModel, modelClicked)
 
 import Types exposing (..)
 
@@ -9,7 +9,7 @@ modelClicked pos model =
         info =
             model.info
     in
-    { model | frets = updateFrets model.frets info (Fret (getClosestStringNum info pos.x) (getClosestFretNum info pos.y) Play) }
+    { model | frets = updateFrets model.frets info pos }
 
 
 getClosestStringNum : ImgInfo -> Float -> Int
@@ -32,7 +32,18 @@ getClosestFretNum info y =
 
 initSvgModel : SvgModel
 initSvgModel =
-    { clickPos = Nothing, info = createDefaultImgInfo, frets = [] }
+    { clickPos = Nothing, info = createDefaultImgInfo, frets = initFrets }
+
+
+initFrets : Frets
+initFrets =
+    { string1 = Open
+    , string2 = Open
+    , string3 = Open
+    , string4 = Open
+    , string5 = Open
+    , string6 = Open
+    }
 
 
 createDefaultImgInfo : ImgInfo
@@ -69,84 +80,131 @@ createDefaultImgInfo =
     }
 
 
-getFretType : Fret -> FretType
-getFretType (Fret _ _ t) =
-    t
+updateFrets : Frets -> ImgInfo -> Pos -> Frets
+updateFrets frets info pos =
+    case getMaybeFretCandidate info pos of
+        Nothing ->
+            frets
+
+        Just candidate ->
+            case getFretString candidate of
+                One ->
+                    { frets | string1 = updateFret info candidate }
+
+                Two ->
+                    { frets | string2 = updateFret info candidate }
+
+                Three ->
+                    { frets | string3 = updateFret info candidate }
+
+                Four ->
+                    { frets | string4 = updateFret info candidate }
+
+                Five ->
+                    { frets | string5 = updateFret info candidate }
+
+                Six ->
+                    { frets | string6 = updateFret info candidate }
 
 
-withType : Fret -> FretType -> Fret
-withType (Fret sn fn _) t =
-    Fret sn fn t
-
-
-updateFrets : List Fret -> ImgInfo -> Fret -> List Fret
-updateFrets frets info fret =
-    if not (validFret info fret) then
-        frets
-
-    else
-        let
-            existing =
-                pop (\f -> isEqualFret fret f)
-                    frets
-        in
-        case existing of
-            Nothing ->
-                frets ++ [ fret ]
-
-            Just ex ->
-                removeAndUpdateFret frets fret ex
-
-
-removeAndUpdateFret : List Fret -> Fret -> Fret -> List Fret
-removeAndUpdateFret frets fret existing =
+getMaybeFretCandidate : ImgInfo -> Pos -> Maybe FretCandidate
+getMaybeFretCandidate info pos =
     let
-        without =
-            List.filter (\f -> not (isEqualFret fret f)) frets
+        stringNum =
+            getStringNum (getClosestStringNum info pos.x)
 
-        res =
-            case getFretType existing of
-                Play ->
-                    [ withType fret Mute ]
+        fretNum =
+            getClosestFretNum info pos.y
 
-                Mute ->
-                    []
+        a =
+            Debug.log "stringNum " stringNum
+
+        b =
+            Debug.log "fretNum " fretNum
     in
-    without ++ res
-
-
-validFret : ImgInfo -> Fret -> Bool
-validFret info (Fret stringNum fretNum _) =
-    fretNum >= 0 && fretNum <= info.numFrets && stringNum >= 0 && stringNum < info.numStrings
-
-
-pop : (a -> Bool) -> List a -> Maybe a
-pop fun l =
-    case l of
-        [] ->
+    case validFret info fretNum of
+        False ->
             Nothing
 
-        element :: elements ->
-            case fun element of
-                True ->
-                    Just element
+        True ->
+            case stringNum of
+                Nothing ->
+                    Nothing
 
-                False ->
-                    pop fun elements
-
-
-isEqualFret : Fret -> Fret -> Bool
-isEqualFret (Fret s1 f1 _) (Fret s2 f2 _) =
-    s1 == s2 && f1 == f2
+                Just sn ->
+                    Just (FretCandidate sn fretNum)
 
 
-getFretPos : ImgInfo -> Fret -> Pos
-getFretPos info (Fret sn fn _) =
+getStringNum : Int -> Maybe StringNum
+getStringNum stringNum =
+    case stringNum of
+        0 ->
+            Just One
+
+        1 ->
+            Just Two
+
+        2 ->
+            Just Three
+
+        3 ->
+            Just Four
+
+        4 ->
+            Just Five
+
+        5 ->
+            Just Six
+
+        _ ->
+            Nothing
+
+
+updateFret : ImgInfo -> FretCandidate -> Fret
+updateFret info candidate =
+    -- TODO fix here for it to work
+    Mute
+
+
+validFret : ImgInfo -> Int -> Bool
+validFret info fretNum =
+    fretNum >= 0 && fretNum <= info.numFrets
+
+
+getFretString : FretCandidate -> StringNum
+getFretString (FretCandidate sn _) =
+    sn
+
+
+getFretsPos : ImgInfo -> Frets -> List ( Fret, Pos )
+getFretsPos info frets =
+    [ getFretPos info frets.string1 1
+    , getFretPos info frets.string2 2
+    , getFretPos info frets.string3 3
+    , getFretPos info frets.string4 4
+    , getFretPos info frets.string5 5
+    , getFretPos info frets.string6 6
+    ]
+
+
+getFretPos : ImgInfo -> Fret -> Int -> ( Fret, Pos )
+getFretPos info fret sn =
     let
         stringNum =
             toFloat sn
 
         fretNum =
-            toFloat fn
+            case fret of
+                Open ->
+                    0
+
+                Mute ->
+                    0
+
+                Fret fn ->
+                    toFloat fn
+
+        pos =
+            { x = info.x + stringNum * info.stringSpace + info.lineWidth / 2, y = info.y + fretNum * info.fretSpace - info.fretSpace / 2 }
     in
-    { x = info.x + stringNum * info.stringSpace + info.lineWidth / 2, y = info.y + fretNum * info.fretSpace - info.fretSpace / 2 }
+    ( fret, pos )
