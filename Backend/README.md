@@ -1,5 +1,8 @@
 # Build
-stack build
+stack build --ghc-options -Wall --ghc-options -Werror
+
+# Clean
+stack clean
 
 # Run
-stack exec backend-exe
+stack run

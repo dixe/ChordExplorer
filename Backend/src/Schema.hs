@@ -13,11 +13,6 @@
 
 
 module Schema where
-
-import           Data.Aeson (ToJSON, toJSON, object, (.=), FromJSON, parseJSON, (.:), withObject
-                            , Object)
-import           Data.Aeson.Types (Parser, Pair)
-import           Database.Persist (Entity(..), Entity)
 import qualified Database.Persist.TH as PTH
 import           Data.Text (Text)
 

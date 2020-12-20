@@ -1,29 +1,15 @@
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE TypeOperators #-}
 {-# LANGUAGE DeriveGeneric #-}
+{-# LANGUAGE DuplicateRecordFields #-}
+
 
 module ApiType where
 
-import Data.Text
 import Servant.API
-import Control.Monad.Except
-import Control.Monad.Reader
 import Data.Aeson
-import Data.Aeson.Types
-import Data.Attoparsec.ByteString
-import Data.ByteString (ByteString)
-import Data.List
 import Data.Int (Int64)
-import Data.Maybe
-import Data.String.Conversions
 import GHC.Generics
-import Network.HTTP.Media ((//), (/:))
-import Network.Wai
-import Network.Wai.Handler.Warp
-import Servant
-import System.Directory
-import Servant.Types.SourceT (source)
-import qualified Data.Aeson.Parser
 
 
 
@@ -33,10 +19,16 @@ import qualified Data.Aeson.Parser
 type ChordApi =
   "chords" :> Get '[JSON] [Chord]
   :<|> "chords" :> Capture "chordId" Int64 :> Get '[JSON] Chord
-  :<|> "chords" :> ReqBody '[JSON] Chord :> Post '[JSON] Int64
+  :<|> "chords" :> ReqBody '[JSON] UploadChord :> Post '[JSON] Int64
 
-type CreateApi =
-  "chords" :> ReqBody '[JSON] Chord :> Post '[JSON] Int64
+
+
+data UploadChord = UploadChord {
+  name :: String,
+  svgBase64 :: String,
+  tags :: [String]
+  } deriving (Eq, Show, Generic)
+
 
 data Chord = Chord {
   id :: Int64,
@@ -44,6 +36,10 @@ data Chord = Chord {
   svgBase64 :: String,
   tags :: [String]
   } deriving (Eq, Show, Generic)
+
+instance ToJSON UploadChord
+
+instance FromJSON UploadChord
 
 instance ToJSON Chord
 

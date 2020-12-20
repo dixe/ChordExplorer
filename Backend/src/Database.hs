@@ -12,15 +12,13 @@ module Database where
 
 import Prelude
 
-import Control.Monad.Logger (runStdoutLoggingT, MonadLogger, LoggingT)
-import Control.Monad.Reader (runReaderT, lift, liftIO)
-import Control.Monad.IO.Class (MonadIO)
-import Database.Persist (selectList, (<.), SelectOpt(..), Entity, get, getBy, insert, selectList, entityVal, entityKey)
+import Control.Monad.Logger (runStdoutLoggingT, LoggingT)
+import Control.Monad.Reader (runReaderT, liftIO)
+import Database.Persist (selectList, Entity, getBy, insert, selectList, entityVal, entityKey)
 import Database.Persist.Postgresql (ConnectionString, withPostgresqlConn, runMigration, SqlPersistT, fromSqlKey, toSqlKey)
 import Data.Int (Int64)
 import Data.Text (pack, unpack)
-import Database.Esqueleto (select, from, where_, (^.), val, (==.), on,
-                                     InnerJoin(..), limit, orderBy, desc)
+import Database.Esqueleto (select, from, where_, (^.), val, (==.), on, InnerJoin(..))
 import Data.Maybe (listToMaybe)
 
 import Schema
@@ -94,8 +92,8 @@ fillChordsWthTags chords funs =
         [] -> return []
         (f:fs) -> do
           res <- liftIO $ fillChordWithTags c f
-          tail <- fillChordsWthTags cs fs
-          return $ res : tail
+          rest <- fillChordsWthTags cs fs
+          return $ res : rest
 
 toIO :: a -> IO a
 toIO a = do
@@ -111,14 +109,15 @@ fillChordWithTags chord createF = do
 
 
 
-createChordDB :: Chord -> IO Int64
+createChordDB :: UploadChord -> IO Int64
 createChordDB chord =
-  let (dbChord, tags) = toDBChord chord
-      cId = fromSqlKey <$> runAction localConnString (insert dbChord)
-  in do
-    cId <- fromSqlKey <$> runAction localConnString (insert dbChord)
-    tagIds <- liftIO $ createTagsDB cId tags
-    return cId
+  let
+    (dbChord, tags) = toDBChord chord
+  in
+    do
+      cId <- fromSqlKey <$> runAction localConnString (insert dbChord)
+      _ <- liftIO $ createTagsDB cId tags
+      return cId
 
 
 
@@ -134,8 +133,8 @@ createChordTagDBRelation cId tagids =
     tagRelations = map (\tagKey -> DbChordToTag (toSqlKey cId) tagKey) tagids
   in
     do
-     liftIO $ mapM (\rel -> runAction localConnString $ insert rel) tagRelations
-     return tagids
+      _ <- liftIO $ mapM (\rel -> runAction localConnString $ insert rel) tagRelations
+      return tagids
 
 
 createOrGetTagId :: DbTag -> IO (Key DbTag)
@@ -160,7 +159,7 @@ fromDBTag :: DbTag -> String
 fromDBTag (DbTag name) = unpack name
 
 fromDBChord :: Int64 -> DbChord -> [DbTag] -> Chord
-fromDBChord id (DbChord name svg) tags = Chord id (unpack name) (unpack svg) (map fromDBTag tags)
+fromDBChord cid (DbChord name svg) tags = Chord cid (unpack name) (unpack svg) (map fromDBTag tags)
 
 fromDBChordEntity :: Entity DbChord -> [DbTag] -> Chord
 fromDBChordEntity e tags =
@@ -172,5 +171,5 @@ fromDBChordEntity e tags =
 toDBTag :: String -> DbTag
 toDBTag tag = DbTag $ pack tag
 
-toDBChord :: Chord -> (DbChord, [DbTag])
-toDBChord (Chord id name svg tags) = (DbChord (pack name) (pack svg), map toDBTag tags)
+toDBChord :: UploadChord -> (DbChord, [DbTag])
+toDBChord (UploadChord name svg tags) = (DbChord (pack name) (pack svg), map toDBTag tags)
