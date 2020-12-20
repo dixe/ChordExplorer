@@ -1,4 +1,4 @@
-module ChordChart exposing (createChordView)
+module SvgChordRender exposing (createChordView)
 
 import Decoders exposing (..)
 import Element exposing (Element, column, html, text)
@@ -9,11 +9,11 @@ import Svg.String.Events exposing (..)
 import Types exposing (..)
 
 
-createChordView : Model -> Element Msg
+createChordView : SvgModel -> Element Msg
 createChordView model =
     let
         svgHtml =
-            renderBaseChart (getRenderNodes model)
+            renderBaseChart model (getRenderNodes model)
     in
     column []
         [ html (toHtml svgHtml)
@@ -21,7 +21,7 @@ createChordView model =
         ]
 
 
-getRenderNodes : Model -> List (Svg Msg)
+getRenderNodes : SvgModel -> List (Svg Msg)
 getRenderNodes model =
     case model.clickPos of
         Just pos ->
@@ -29,6 +29,11 @@ getRenderNodes model =
 
         Nothing ->
             []
+
+
+onClickSvg : Attribute Msg
+onClickSvg =
+    on "click" mouseXY
 
 
 renderClick : Pos -> Svg Msg
@@ -41,55 +46,17 @@ renderClick pos =
         []
 
 
-renderBaseChart : List (Svg Msg) -> Svg.String.Html Msg
-renderBaseChart nodes =
+renderBaseChart : SvgModel -> List (Svg Msg) -> Svg.String.Html Msg
+renderBaseChart model nodes =
     svg
         [ width "400"
         , height "400"
         , viewBox "0 0 400 400"
         , onClickSvg
         ]
-        (renderStrings createImgInfo
+        (renderStrings model.info
             ++ nodes
         )
-
-
-onClickSvg : Attribute Msg
-onClickSvg =
-    on "click" mouseXY
-
-
-createImgInfo : ImgInfo
-createImgInfo =
-    let
-        stringSpace =
-            40
-
-        fretSpace =
-            70
-
-        numStrings =
-            6
-
-        numFrets =
-            4
-
-        imgHeight =
-            fretSpace * numFrets
-
-        imgWidth =
-            stringSpace * (numStrings - 1)
-    in
-    { x = 30
-    , y = 30
-    , lineWidth = 4
-    , width = imgWidth
-    , height = imgHeight
-    , stringSpace = stringSpace
-    , fretSpace = fretSpace
-    , numStrings = numStrings
-    , numFrets = numFrets
-    }
 
 
 renderStrings : ImgInfo -> List (Svg Msg)
@@ -102,10 +69,6 @@ renderStrings info =
             List.map renderFret (List.map (\a -> { info | y = info.y + a * info.fretSpace }) (List.range 0 info.numFrets))
     in
     strings ++ frets
-
-
-type alias ImgInfo =
-    { x : Int, y : Int, lineWidth : Int, width : Int, height : Int, stringSpace : Int, fretSpace : Int, numStrings : Int, numFrets : Int }
 
 
 renderString : ImgInfo -> Svg Msg

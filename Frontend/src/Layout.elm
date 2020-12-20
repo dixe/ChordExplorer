@@ -1,6 +1,5 @@
 module Layout exposing (viewMain)
 
-import ChordChart exposing (..)
 import Debug exposing (todo)
 import Element exposing (..)
 import Element.Events exposing (..)
@@ -10,6 +9,7 @@ import Html as Html exposing (Html, div, h3, label, map, p)
 import Html.Attributes exposing (class, href)
 import LayoutHelpers as LH
 import List
+import SvgChordRender exposing (..)
 import Types exposing (..)
 
 
@@ -30,9 +30,14 @@ viewMain model =
 
 viewMousePos : Model -> Element Msg
 viewMousePos model =
-    case model.clickPos of
-        Just pos ->
-            el [] (row [ spacing 10 ] [ text ("x=" ++ String.fromFloat pos.x), text ("y=" ++ String.fromFloat pos.y) ])
+    case model.svgModel of
+        Just svgModel ->
+            case svgModel.clickPos of
+                Just pos ->
+                    el [] (row [ spacing 10 ] [ text ("x=" ++ String.fromFloat pos.x), text ("y=" ++ String.fromFloat pos.y) ])
+
+                Nothing ->
+                    Element.none
 
         Nothing ->
             Element.none
@@ -54,10 +59,20 @@ viewModel model =
             chordsView model.chordList
 
         CreatingChord ->
-            createChordView model
+            viewCreateChord model
 
         None ->
-            createChordView model
+            viewCreateChord model
+
+
+viewCreateChord : Model -> Element Msg
+viewCreateChord model =
+    case model.svgModel of
+        Just svgModel ->
+            createChordView svgModel
+
+        Nothing ->
+            Element.none
 
 
 frontPage : Element Msg

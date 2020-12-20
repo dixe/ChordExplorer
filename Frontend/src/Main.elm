@@ -9,6 +9,7 @@ import Html exposing (..)
 import Http
 import Json.Decode exposing (Decoder, decodeString, errorToString, field, int, list, map3, string)
 import Layout exposing (viewMain)
+import SvgChordLogic exposing (initSvgModel)
 import Task
 import Types exposing (..)
 
@@ -23,7 +24,7 @@ main =
 
 init : () -> ( Model, Cmd Msg )
 init _ =
-    ( { chordList = [], status = None, clickPos = Nothing }, Cmd.none )
+    ( { chordList = [], status = None, svgModel = Just initSvgModel }, Cmd.none )
 
 
 
@@ -40,13 +41,23 @@ update msg model =
             ( { model | chordList = [], status = CreatingChord }, Cmd.none )
 
         SvgClickPos x y ->
-            ( { model | clickPos = Just { x = x, y = y } }, Cmd.none )
+            ( { model | svgModel = updateSvgModelClick x y model.svgModel }, Cmd.none )
 
         ChordsLoaded res ->
             loadedChords model res
 
         DownloadSvg s ->
             ( model, saveSvg s )
+
+
+updateSvgModelClick : Float -> Float -> Maybe SvgModel -> Maybe SvgModel
+updateSvgModelClick x y svgModel =
+    case svgModel of
+        Just model ->
+            Just { model | clickPos = Just { x = x, y = y } }
+
+        Nothing ->
+            Nothing
 
 
 saveSvg : String -> Cmd Msg

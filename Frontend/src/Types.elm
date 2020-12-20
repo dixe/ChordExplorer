@@ -26,9 +26,24 @@ type alias Chord =
     { id : Int, name : String, svg : Svg Msg, tags : List String }
 
 
+type alias Model =
+    { chordList : List Chord
+    , status : Status
+    , svgModel : Maybe SvgModel
+    }
+
+
+
+-- SVG CREATE MODEL
+
+
+type alias ImgInfo =
+    { x : Int, y : Int, lineWidth : Int, width : Int, height : Int, stringSpace : Int, fretSpace : Int, numStrings : Int, numFrets : Int }
+
+
 type alias Pos =
     { x : Float, y : Float }
 
 
-type alias Model =
-    { chordList : List Chord, status : Status, clickPos : Maybe Pos }
+type alias SvgModel =
+    { info : ImgInfo, clickPos : Maybe Pos }
