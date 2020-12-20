@@ -10,12 +10,16 @@ type Status
     | LoadedChords
     | Failure String
     | Loading
+    | CreatingChord
     | None
 
 
 type Msg
     = LoadingChords
     | ChordsLoaded (Result Http.Error String)
+    | CreateChord
+    | SvgClick Int Int
+    | DownloadSvg String
 
 
 type alias Chord =

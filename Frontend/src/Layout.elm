@@ -1,5 +1,6 @@
 module Layout exposing (viewMain)
 
+import ChordChart exposing (..)
 import Debug exposing (todo)
 import Element exposing (..)
 import Element.Events exposing (..)
@@ -21,6 +22,7 @@ viewMain model =
         column [ width fill, spacing 10 ]
             [ LH.header
             , LH.spacerLine
+            , viewCreateButton
             , viewModel model
             ]
 
@@ -40,21 +42,29 @@ viewModel model =
         LoadedChords ->
             chordsView model.chordList
 
+        CreatingChord ->
+            createChordView
+
         None ->
-            frontPage
+            createChordView
 
 
 frontPage : Element Msg
 frontPage =
     row [ width fill ]
         [ column [ height fill, width <| fillPortion 5 ] [ button (LH.buttonLayout ++ [ height fill, centerX ]) { label = text "Browse chords", onPress = Just LoadingChords } ]
-        , column [ height fill, width <| fillPortion 5 ] [ button (LH.buttonLayout ++ [ centerX ]) { label = text "Create chords", onPress = Nothing } ]
+        , column [ height fill, width <| fillPortion 5 ] [ viewCreateButton ]
         ]
 
 
 chordsView : List Chord -> Element Msg
 chordsView chords =
     wrappedRow [] (List.map viewChord chords)
+
+
+viewCreateButton : Element Msg
+viewCreateButton =
+    button (LH.buttonLayout ++ [ centerX ]) { label = text "Create chords", onPress = Just CreateChord }
 
 
 viewChord : Chord -> Element Msg

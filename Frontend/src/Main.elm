@@ -1,7 +1,9 @@
 module Main exposing (..)
 
 import Browser
+import Bytes exposing (Bytes)
 import Decoders exposing (..)
+import File.Download as Download
 import Html exposing (..)
 import Http
 import Json.Decode exposing (Decoder, decodeString, errorToString, field, int, list, map3, string)
@@ -20,7 +22,7 @@ main =
 
 init : () -> ( Model, Cmd Msg )
 init _ =
-    ( { chordList = [], status = None }, browseChords )
+    ( { chordList = [], status = None }, Cmd.none )
 
 
 
@@ -33,26 +35,48 @@ update msg model =
         LoadingChords ->
             ( model, browseChords )
 
+        CreateChord ->
+            ( { chordList = [], status = CreatingChord }, Cmd.none )
+
+        SvgClick x y ->
+            ( model, Cmd.none )
+
         ChordsLoaded res ->
-            let
-                ( status, cmd ) =
-                    fromResult res chordsDecoder SuccessAll
-            in
-            case status of
-                SuccessAll chords ->
-                    ( { chordList = chords, status = LoadedChords }, cmd )
+            loadedChords model res
 
-                Failure reason ->
-                    ( { chordList = model.chordList, status = Failure reason }, Cmd.none )
+        DownloadSvg s ->
+            ( model, saveSvg s )
 
-                None ->
-                    ( { chordList = model.chordList, status = None }, Cmd.none )
 
-                Loading ->
-                    ( { chordList = model.chordList, status = Loading }, Cmd.none )
+saveSvg : String -> Cmd Msg
+saveSvg content =
+    Download.string "chord.svg" "application/svg" content
 
-                LoadedChords ->
-                    ( { chordList = model.chordList, status = LoadedChords }, Cmd.none )
+
+loadedChords : Model -> Result Http.Error String -> ( Model, Cmd Msg )
+loadedChords model res =
+    let
+        ( status, cmd ) =
+            fromResult res chordsDecoder SuccessAll
+    in
+    case status of
+        SuccessAll chords ->
+            ( { chordList = chords, status = LoadedChords }, cmd )
+
+        Failure reason ->
+            ( { chordList = model.chordList, status = Failure reason }, Cmd.none )
+
+        CreatingChord ->
+            ( model, Cmd.none )
+
+        None ->
+            ( { chordList = model.chordList, status = None }, Cmd.none )
+
+        Loading ->
+            ( { chordList = model.chordList, status = Loading }, Cmd.none )
+
+        LoadedChords ->
+            ( { chordList = model.chordList, status = LoadedChords }, Cmd.none )
 
 
 browseChords : Cmd Msg
