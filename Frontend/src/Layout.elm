@@ -24,7 +24,18 @@ viewMain model =
             , LH.spacerLine
             , viewCreateButton
             , viewModel model
+            , viewMousePos model
             ]
+
+
+viewMousePos : Model -> Element Msg
+viewMousePos model =
+    case model.clickPos of
+        Just pos ->
+            el [] (row [ spacing 10 ] [ text ("x=" ++ String.fromFloat pos.x), text ("y=" ++ String.fromFloat pos.y) ])
+
+        Nothing ->
+            Element.none
 
 
 viewModel : Model -> Element Msg
@@ -43,10 +54,10 @@ viewModel model =
             chordsView model.chordList
 
         CreatingChord ->
-            createChordView
+            createChordView model
 
         None ->
-            createChordView
+            createChordView model
 
 
 frontPage : Element Msg

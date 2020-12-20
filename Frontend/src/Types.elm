@@ -18,13 +18,17 @@ type Msg
     = LoadingChords
     | ChordsLoaded (Result Http.Error String)
     | CreateChord
-    | SvgClick Int Int
     | DownloadSvg String
+    | SvgClickPos Float Float
 
 
 type alias Chord =
     { id : Int, name : String, svg : Svg Msg, tags : List String }
 
 
+type alias Pos =
+    { x : Float, y : Float }
+
+
 type alias Model =
-    { chordList : List Chord, status : Status }
+    { chordList : List Chord, status : Status, clickPos : Maybe Pos }

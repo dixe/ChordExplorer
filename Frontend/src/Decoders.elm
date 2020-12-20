@@ -1,7 +1,7 @@
-module Decoders exposing (chordDecoder, chordsDecoder, decode)
+module Decoders exposing (chordDecoder, chordsDecoder, decode, mouseXY)
 
 import Base64 as Base64
-import Json.Decode exposing (Decoder, andThen, decodeString, errorToString, fail, field, int, list, map, map4, string, succeed)
+import Json.Decode exposing (Decoder, andThen, decodeString, errorToString, fail, field, float, int, list, map, map4, string, succeed)
 import Svg exposing (Svg)
 import SvgParser exposing (..)
 import Types exposing (..)
@@ -69,3 +69,22 @@ stringToSvg base64 =
 
         Err err ->
             Err err
+
+
+offsetX : Decoder Float
+offsetX =
+    field "offsetX" float
+
+
+offsetY : Decoder Float
+offsetY =
+    field "offsetY" float
+
+
+
+-- See https://www.w3schools.com/jsref/obj_mouseevent.asp for properties. These get serialized to Json into elm
+
+
+mouseXY : Decoder Msg
+mouseXY =
+    Json.Decode.map2 SvgClickPos offsetX offsetY

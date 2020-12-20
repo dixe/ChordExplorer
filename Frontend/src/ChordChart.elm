@@ -1,18 +1,19 @@
 module ChordChart exposing (createChordView)
 
+import Decoders exposing (..)
 import Element exposing (Element, column, html, text)
 import Element.Input exposing (button)
-import Svg.String exposing (Svg, rect, svg, toHtml, toString)
+import Svg.String exposing (Attribute, Svg, circle, rect, svg, toHtml, toString)
 import Svg.String.Attributes exposing (..)
 import Svg.String.Events exposing (..)
 import Types exposing (..)
 
 
-createChordView : Element Msg
-createChordView =
+createChordView : Model -> Element Msg
+createChordView model =
     let
         svgHtml =
-            renderBaseChart
+            renderBaseChart (getRenderNodes model)
     in
     column []
         [ html (toHtml svgHtml)
@@ -20,15 +21,42 @@ createChordView =
         ]
 
 
-renderBaseChart : Svg.String.Html Msg
-renderBaseChart =
+getRenderNodes : Model -> List (Svg Msg)
+getRenderNodes model =
+    case model.clickPos of
+        Just pos ->
+            [ renderClick pos ]
+
+        Nothing ->
+            []
+
+
+renderClick : Pos -> Svg Msg
+renderClick pos =
+    circle
+        [ cx (String.fromFloat pos.x)
+        , cy (String.fromFloat pos.y)
+        , r (String.fromFloat 10)
+        ]
+        []
+
+
+renderBaseChart : List (Svg Msg) -> Svg.String.Html Msg
+renderBaseChart nodes =
     svg
         [ width "400"
         , height "400"
         , viewBox "0 0 400 400"
-        , onClick (SvgClick 0 0)
+        , onClickSvg
         ]
-        (renderStrings createImgInfo)
+        (renderStrings createImgInfo
+            ++ nodes
+        )
+
+
+onClickSvg : Attribute Msg
+onClickSvg =
+    on "click" mouseXY
 
 
 createImgInfo : ImgInfo

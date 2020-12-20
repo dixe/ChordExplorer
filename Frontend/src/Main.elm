@@ -1,6 +1,7 @@
 module Main exposing (..)
 
 import Browser
+import Browser.Events as E
 import Bytes exposing (Bytes)
 import Decoders exposing (..)
 import File.Download as Download
@@ -22,7 +23,7 @@ main =
 
 init : () -> ( Model, Cmd Msg )
 init _ =
-    ( { chordList = [], status = None }, Cmd.none )
+    ( { chordList = [], status = None, clickPos = Nothing }, Cmd.none )
 
 
 
@@ -36,10 +37,10 @@ update msg model =
             ( model, browseChords )
 
         CreateChord ->
-            ( { chordList = [], status = CreatingChord }, Cmd.none )
+            ( { model | chordList = [], status = CreatingChord }, Cmd.none )
 
-        SvgClick x y ->
-            ( model, Cmd.none )
+        SvgClickPos x y ->
+            ( { model | clickPos = Just { x = x, y = y } }, Cmd.none )
 
         ChordsLoaded res ->
             loadedChords model res
@@ -61,22 +62,22 @@ loadedChords model res =
     in
     case status of
         SuccessAll chords ->
-            ( { chordList = chords, status = LoadedChords }, cmd )
+            ( { model | chordList = chords, status = LoadedChords }, cmd )
 
         Failure reason ->
-            ( { chordList = model.chordList, status = Failure reason }, Cmd.none )
+            ( { model | chordList = model.chordList, status = Failure reason }, Cmd.none )
 
         CreatingChord ->
             ( model, Cmd.none )
 
         None ->
-            ( { chordList = model.chordList, status = None }, Cmd.none )
+            ( { model | chordList = model.chordList, status = None }, Cmd.none )
 
         Loading ->
-            ( { chordList = model.chordList, status = Loading }, Cmd.none )
+            ( { model | chordList = model.chordList, status = Loading }, Cmd.none )
 
         LoadedChords ->
-            ( { chordList = model.chordList, status = LoadedChords }, Cmd.none )
+            ( { model | chordList = model.chordList, status = LoadedChords }, Cmd.none )
 
 
 browseChords : Cmd Msg
