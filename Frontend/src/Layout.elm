@@ -59,9 +59,14 @@ chordsView chords =
 
 viewChord : Chord -> Element Msg
 viewChord c =
-    column [] [ html c.svg, text c.name, viewTags c.tags ]
+    column [ height (px 400), width (px 400) ] [ html c.svg, row [ centerX ] [ text c.name, viewTags c.tags ] ]
 
 
 viewTags : List String -> Element Msg
 viewTags tags =
-    row [] (List.map text tags)
+    row [ centerX, spacing 10, padding 10 ] (List.map viewTag tags)
+
+
+viewTag : String -> Element Msg
+viewTag tag =
+    el [] (text tag)
