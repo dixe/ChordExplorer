@@ -1,6 +1,6 @@
-module SvgChordLogic exposing (getFretsPos, initSvgModel, modelClicked)
+module SvgChord.Logic exposing (getFretsPos, initSvgModel, modelClicked)
 
-import Types exposing (..)
+import SvgChord.Types exposing (..)
 
 
 modelClicked : Pos -> SvgModel -> SvgModel
@@ -127,15 +127,15 @@ getMaybeFretCandidate info pos =
             Debug.log "fretNum " fretNum
     in
     if validFret info fretNum then
-        Nothing
-
-    else
         case stringNum of
             Nothing ->
                 Nothing
 
             Just sn ->
                 Just (FretCandidate sn fretNum)
+
+    else
+        Nothing
 
 
 getStringNum : Int -> Maybe StringNum

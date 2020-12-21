@@ -9,7 +9,8 @@ import Html exposing (..)
 import Http
 import Json.Decode exposing (Decoder, decodeString, errorToString, field, int, list, map3, string)
 import Layout exposing (viewMain)
-import SvgChordLogic exposing (..)
+import SvgChord.Logic exposing (..)
+import SvgChord.Types exposing (SvgModel)
 import Task
 import Types exposing (..)
 

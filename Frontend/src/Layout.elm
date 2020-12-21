@@ -9,7 +9,7 @@ import Html as Html exposing (Html, div, h3, label, map, p)
 import Html.Attributes exposing (class, href)
 import LayoutHelpers as LH
 import List
-import SvgChordRender exposing (..)
+import SvgChord.Render exposing (..)
 import Types exposing (..)
 
 

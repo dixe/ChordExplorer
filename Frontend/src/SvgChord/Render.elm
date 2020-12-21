@@ -1,4 +1,4 @@
-module SvgChordRender exposing (createChordView)
+module SvgChord.Render exposing (createChordView)
 
 import Decoders exposing (..)
 import Element exposing (Element, column, html, text)
@@ -6,7 +6,8 @@ import Element.Input exposing (button)
 import Svg.String exposing (Attribute, Svg, circle, node, rect, svg, toHtml, toString)
 import Svg.String.Attributes exposing (..)
 import Svg.String.Events exposing (..)
-import SvgChordLogic exposing (..)
+import SvgChord.Logic exposing (..)
+import SvgChord.Types exposing (..)
 import Types exposing (..)
 
 
