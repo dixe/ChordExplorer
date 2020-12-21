@@ -14,7 +14,7 @@ createChordView : SvgModel -> Element Msg
 createChordView model =
     let
         svgHtml =
-            renderBaseChart model (getRenderNodes model)
+            renderChart model (renderFrettings model)
     in
     column []
         [ html (toHtml svgHtml)
@@ -22,8 +22,8 @@ createChordView model =
         ]
 
 
-getRenderNodes : SvgModel -> List (Svg Msg)
-getRenderNodes model =
+renderFrettings : SvgModel -> List (Svg Msg)
+renderFrettings model =
     List.concatMap (renderFret model.info) (getFretsPos model.info model.frets)
 
 
@@ -31,7 +31,7 @@ renderFret : ImgInfo -> ( Fret, Pos ) -> List (Svg Msg)
 renderFret info ( fret, pos ) =
     case fret of
         Open ->
-            renderOpen pos info.diameter
+            renderOpen info pos
 
         Mute ->
             renderMute info pos
@@ -55,9 +55,19 @@ renderPlay pos dia =
     ]
 
 
-renderOpen : Pos -> Float -> List (Svg Msg)
-renderOpen pos dia =
-    renderPlay pos dia
+renderOpen : ImgInfo -> Pos -> List (Svg Msg)
+renderOpen info pos =
+    let
+        inner =
+            circle
+                [ cx (String.fromFloat pos.x)
+                , cy (String.fromFloat pos.y)
+                , r (String.fromFloat (info.diameter * 2 - info.lineWidth / 2))
+                , fill "white"
+                ]
+                []
+    in
+    renderPlay pos info.diameter ++ [ inner ]
 
 
 renderMute : ImgInfo -> Pos -> List (Svg Msg)
@@ -138,29 +148,45 @@ onClickSvg =
     on "click" mouseXY
 
 
-renderBaseChart : SvgModel -> List (Svg Msg) -> Svg.String.Html Msg
-renderBaseChart model nodes =
+renderChart : SvgModel -> List (Svg Msg) -> Svg.String.Html Msg
+renderChart model nodes =
     svg
         [ width "400"
         , height "400"
         , viewBox "0 0 400 400"
         , onClickSvg
         ]
-        (renderStrings model.info
+        (renderBaseChart model.info
             ++ nodes
         )
 
 
-renderStrings : ImgInfo -> List (Svg Msg)
-renderStrings info =
+renderBaseChart : ImgInfo -> List (Svg Msg)
+renderBaseChart info =
     let
         strings =
             List.map renderStringLine (List.map (\a -> { info | x = info.x + toFloat a * info.stringSpace }) (List.range 0 (info.numStrings - 1)))
 
         frets =
             List.map renderFretLine (List.map (\a -> { info | y = info.y + toFloat a * info.fretSpace }) (List.range 0 info.numFrets))
+
+        nut =
+            renderNut info
     in
-    strings ++ frets
+    strings ++ frets ++ nut
+
+
+renderNut : ImgInfo -> List (Svg Msg)
+renderNut info =
+    -- TODO if we add support for selecting starting pos then don'y show nut, but show fret Num as text
+    [ rect
+        [ x (String.fromFloat info.x)
+        , y (String.fromFloat (info.y - info.lineWidth))
+        , width (String.fromFloat (info.width + info.lineWidth))
+        , height (String.fromFloat (info.lineWidth * 3))
+        ]
+        []
+    ]
 
 
 renderStringLine : ImgInfo -> Svg Msg
