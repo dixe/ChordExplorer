@@ -1,4 +1,4 @@
-module Decoders exposing (chordDecoder, chordsDecoder, decode, mouseXY)
+module Decoders exposing (chordDecoder, chordsDecoder, decode)
 
 import Base64 as Base64
 import Json.Decode exposing (Decoder, andThen, decodeString, errorToString, fail, field, float, int, list, map, map4, string, succeed)
@@ -69,32 +69,3 @@ stringToSvg base64 =
 
         Err err ->
             Err err
-
-
-
--- MDN PageX define this as float
--- https://developer.mozilla.org/en-US/docs/Web/API/MouseEvent/pageX
-
-
-offsetX : Decoder Float
-offsetX =
-    field "offsetX" float
-
-
-
--- MDN PageY define this as float
---https://developer.mozilla.org/en-US/docs/Web/API/MouseEvent/pageY
-
-
-offsetY : Decoder Float
-offsetY =
-    field "offsetY" float
-
-
-
--- See https://www.w3schools.com/jsref/obj_mouseevent.asp for properties. These get serialized to Json into elm
-
-
-mouseXY : Decoder Msg
-mouseXY =
-    Json.Decode.map2 SvgClickPos offsetX offsetY

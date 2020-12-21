@@ -1,34 +1,35 @@
 module SvgChord.Render exposing (createChordView)
 
-import Decoders exposing (..)
 import Element exposing (Element, column, html, text)
 import Element.Input exposing (button)
+import Json.Decode exposing (..)
 import Svg.String exposing (Attribute, Svg, circle, node, rect, svg, toHtml, toString)
 import Svg.String.Attributes exposing (..)
 import Svg.String.Events exposing (..)
 import SvgChord.Logic exposing (..)
 import SvgChord.Types exposing (..)
-import Types exposing (..)
 
 
-createChordView : SvgModel -> Element Msg
-createChordView model =
+createChordView : SvgModel -> (Float -> Float -> msg) -> Element msg
+createChordView model msgFun =
     let
+        svgHtml : Svg.String.Html msg
         svgHtml =
-            renderChart model (renderFrettings model)
+            renderChart model msgFun (renderFrettings model)
     in
     column []
         [ html (toHtml svgHtml)
-        , button [] { label = text "Download", onPress = Just (DownloadSvg (toString 1 svgHtml)) }
+
+        --        , button [] { label = text "Download", onPress = Just (DownloadSvg (toString 1 svgHtml)) }
         ]
 
 
-renderFrettings : SvgModel -> List (Svg Msg)
+renderFrettings : SvgModel -> List (Svg msg)
 renderFrettings model =
     List.concatMap (renderFretting model.info) (getFretsPos model.info model.frets)
 
 
-renderFretting : ImgInfo -> ( Fret, Pos ) -> List (Svg Msg)
+renderFretting : ImgInfo -> ( Fret, Pos ) -> List (Svg msg)
 renderFretting info ( fret, pos ) =
     case fret of
         Open ->
@@ -41,7 +42,7 @@ renderFretting info ( fret, pos ) =
             renderPlay pos info.diameter
 
 
-renderPlay : Pos -> Float -> List (Svg Msg)
+renderPlay : Pos -> Float -> List (Svg msg)
 renderPlay pos dia =
     let
         radius =
@@ -56,7 +57,7 @@ renderPlay pos dia =
     ]
 
 
-renderOpen : ImgInfo -> Pos -> List (Svg Msg)
+renderOpen : ImgInfo -> Pos -> List (Svg msg)
 renderOpen info pos =
     let
         inner =
@@ -71,12 +72,12 @@ renderOpen info pos =
     renderPlay pos info.diameter ++ [ inner ]
 
 
-renderMute : ImgInfo -> Pos -> List (Svg Msg)
+renderMute : ImgInfo -> Pos -> List (Svg msg)
 renderMute info pos =
     renderX info pos.x pos.y
 
 
-renderX : ImgInfo -> Float -> Float -> List (Svg Msg)
+renderX : ImgInfo -> Float -> Float -> List (Svg msg)
 renderX info x y =
     let
         leftRight =
@@ -88,7 +89,7 @@ renderX info x y =
     [ leftRight, rightLeft ]
 
 
-renderXRightLeft : ImgInfo -> Float -> Float -> Svg Msg
+renderXRightLeft : ImgInfo -> Float -> Float -> Svg msg
 renderXRightLeft info x y =
     let
         radius =
@@ -116,7 +117,7 @@ renderXRightLeft info x y =
         []
 
 
-renderXLeftRight : ImgInfo -> Float -> Float -> Svg Msg
+renderXLeftRight : ImgInfo -> Float -> Float -> Svg msg
 renderXLeftRight info x y =
     let
         radius =
@@ -144,25 +145,25 @@ renderXLeftRight info x y =
         []
 
 
-onClickSvg : Attribute Msg
-onClickSvg =
-    on "click" mouseXY
+onClickSvg : (Float -> Float -> msg) -> Attribute msg
+onClickSvg msgFun =
+    on "click" (mouseXY msgFun)
 
 
-renderChart : SvgModel -> List (Svg Msg) -> Svg.String.Html Msg
-renderChart model nodes =
+renderChart : SvgModel -> (Float -> Float -> msg) -> List (Svg msg) -> Svg.String.Html msg
+renderChart model msgFun nodes =
     svg
         [ width "400"
         , height "400"
         , viewBox "0 0 400 400"
-        , onClickSvg
+        , onClickSvg msgFun
         ]
         (renderBaseChart model.info
             ++ nodes
         )
 
 
-renderBaseChart : ImgInfo -> List (Svg Msg)
+renderBaseChart : ImgInfo -> List (Svg msg)
 renderBaseChart info =
     let
         strings =
@@ -177,7 +178,7 @@ renderBaseChart info =
     strings ++ frets ++ nut
 
 
-renderNut : ImgInfo -> List (Svg Msg)
+renderNut : ImgInfo -> List (Svg msg)
 renderNut info =
     -- TODO if we add support for selecting starting pos then don'y show nut, but show fret Num as text
     [ rect
@@ -190,7 +191,7 @@ renderNut info =
     ]
 
 
-renderStringLine : ImgInfo -> Svg Msg
+renderStringLine : ImgInfo -> Svg msg
 renderStringLine info =
     rect
         [ x (String.fromFloat info.x)
@@ -201,7 +202,7 @@ renderStringLine info =
         []
 
 
-renderFretLine : ImgInfo -> Svg Msg
+renderFretLine : ImgInfo -> Svg msg
 renderFretLine info =
     rect
         [ x (String.fromFloat info.x)
@@ -216,26 +217,56 @@ renderFretLine info =
 -- Svg.String helper and 'extensions'
 
 
-x1 : Float -> Attribute Msg
+x1 : Float -> Attribute msg
 x1 value =
     attribute "x1" (String.fromFloat value)
 
 
-x2 : Float -> Attribute Msg
+x2 : Float -> Attribute msg
 x2 value =
     attribute "x2" (String.fromFloat value)
 
 
-y1 : Float -> Attribute Msg
+y1 : Float -> Attribute msg
 y1 value =
     attribute "y1" (String.fromFloat value)
 
 
-y2 : Float -> Attribute Msg
+y2 : Float -> Attribute msg
 y2 value =
     attribute "y2" (String.fromFloat value)
 
 
-line : List (Attribute Msg) -> List (Svg Msg) -> Svg Msg
+line : List (Attribute msg) -> List (Svg msg) -> Svg msg
 line attribs children =
     node "line" (attribs ++ [ attribute "stroke" "black" ]) children
+
+
+
+-- Decoders
+-- MDN PageX define this as float
+-- https://developer.mozilla.org/en-US/docs/Web/API/MouseEvent/pageX
+
+
+offsetX : Decoder Float
+offsetX =
+    field "offsetX" float
+
+
+
+-- MDN PageY define this as float
+--https://developer.mozilla.org/en-US/docs/Web/API/MouseEvent/pageY
+
+
+offsetY : Decoder Float
+offsetY =
+    field "offsetY" float
+
+
+
+-- See https://www.w3schools.com/jsref/obj_mouseevent.asp for properties. These get serialized to Json into elm
+
+
+mouseXY : (Float -> Float -> msg) -> Decoder msg
+mouseXY f =
+    Json.Decode.map2 f offsetX offsetY

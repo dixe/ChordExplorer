@@ -1,6 +1,7 @@
 module Layout exposing (viewMain)
 
 import Debug exposing (todo)
+import Decoders exposing (..)
 import Element exposing (..)
 import Element.Events exposing (..)
 import Element.Font as Font
@@ -53,7 +54,7 @@ viewCreateChord : Model -> Element Msg
 viewCreateChord model =
     case model.svgModel of
         Just svgModel ->
-            createChordView svgModel
+            createChordView svgModel SvgClickPos
 
         Nothing ->
             Element.none
