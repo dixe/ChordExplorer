@@ -126,17 +126,16 @@ getMaybeFretCandidate info pos =
         b =
             Debug.log "fretNum " fretNum
     in
-    case validFret info fretNum of
-        False ->
-            Nothing
+    if validFret info fretNum then
+        Nothing
 
-        True ->
-            case stringNum of
-                Nothing ->
-                    Nothing
+    else
+        case stringNum of
+            Nothing ->
+                Nothing
 
-                Just sn ->
-                    Just (FretCandidate sn fretNum)
+            Just sn ->
+                Just (FretCandidate sn fretNum)
 
 
 getStringNum : Int -> Maybe StringNum
@@ -175,17 +174,16 @@ updateFret info old (FretCandidate sn fn) =
                 a ->
                     Fret a
     in
-    case old == new of
-        True ->
-            case new of
-                Open ->
-                    Mute
+    if old == new then
+        case new of
+            Open ->
+                Mute
 
-                _ ->
-                    Open
+            _ ->
+                Open
 
-        False ->
-            new
+    else
+        new
 
 
 validFret : ImgInfo -> Int -> Bool

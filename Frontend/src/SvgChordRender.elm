@@ -18,17 +18,17 @@ createChordView model =
     in
     column []
         [ html (toHtml svgHtml)
-        , button [] { label = text "Download", onPress = Just (DownloadSvg (toString 0 svgHtml)) }
+        , button [] { label = text "Download", onPress = Just (DownloadSvg (toString 1 svgHtml)) }
         ]
 
 
 renderFrettings : SvgModel -> List (Svg Msg)
 renderFrettings model =
-    List.concatMap (renderFret model.info) (getFretsPos model.info model.frets)
+    List.concatMap (renderFretting model.info) (getFretsPos model.info model.frets)
 
 
-renderFret : ImgInfo -> ( Fret, Pos ) -> List (Svg Msg)
-renderFret info ( fret, pos ) =
+renderFretting : ImgInfo -> ( Fret, Pos ) -> List (Svg Msg)
+renderFretting info ( fret, pos ) =
     case fret of
         Open ->
             renderOpen info pos
@@ -79,16 +79,16 @@ renderX : ImgInfo -> Float -> Float -> List (Svg Msg)
 renderX info x y =
     let
         leftRight =
-            renderLeftRight info x y
+            renderXLeftRight info x y
 
         rightLeft =
-            renderRightLeft info x y
+            renderXRightLeft info x y
     in
     [ leftRight, rightLeft ]
 
 
-renderRightLeft : ImgInfo -> Float -> Float -> Svg Msg
-renderRightLeft info x y =
+renderXRightLeft : ImgInfo -> Float -> Float -> Svg Msg
+renderXRightLeft info x y =
     let
         radius =
             info.diameter * 2
@@ -115,8 +115,8 @@ renderRightLeft info x y =
         []
 
 
-renderLeftRight : ImgInfo -> Float -> Float -> Svg Msg
-renderLeftRight info x y =
+renderXLeftRight : ImgInfo -> Float -> Float -> Svg Msg
+renderXLeftRight info x y =
     let
         radius =
             info.diameter * 2

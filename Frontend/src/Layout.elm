@@ -24,23 +24,7 @@ viewMain model =
             , LH.spacerLine
             , viewCreateButton
             , viewModel model
-            , viewMousePos model
             ]
-
-
-viewMousePos : Model -> Element Msg
-viewMousePos model =
-    case model.svgModel of
-        Just svgModel ->
-            case svgModel.clickPos of
-                Just pos ->
-                    el [] (row [ spacing 10 ] [ text ("x=" ++ String.fromFloat pos.x), text ("y=" ++ String.fromFloat pos.y) ])
-
-                Nothing ->
-                    Element.none
-
-        Nothing ->
-            Element.none
 
 
 viewModel : Model -> Element Msg
