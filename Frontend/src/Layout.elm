@@ -44,7 +44,8 @@ viewModel model =
             chordsView model.chordList
 
         CreatingChord ->
-            viewCreateChord model
+            column []
+                [ viewCreateChord model ]
 
         None ->
             viewCreateChord model
@@ -54,7 +55,10 @@ viewCreateChord : Model -> Element Msg
 viewCreateChord model =
     case model.svgModel of
         Just svgModel ->
-            createChordView svgModel SvgClickPos
+            column []
+                [ createChordView svgModel SvgClickPos
+                , button [] { label = text "Download", onPress = Just (DownloadSvg (getSvgString svgModel True)) }
+                ]
 
         Nothing ->
             Element.none

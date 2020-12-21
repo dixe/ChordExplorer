@@ -20,7 +20,7 @@ type Msg
     | ChordsLoaded (Result Http.Error String)
     | CreateChord
     | DownloadSvg String
-    | SvgClickPos Float Float
+    | UploadChord Chord
 
 
 type alias Chord =

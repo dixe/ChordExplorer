@@ -1,4 +1,4 @@
-module SvgChord.Render exposing (createChordView)
+module SvgChord.Render exposing (createChordView, getSvgString)
 
 import Element exposing (Element, column, html, text)
 import Element.Input exposing (button)
@@ -18,10 +18,32 @@ createChordView model msgFun =
             renderChart model msgFun (renderFrettings model)
     in
     column []
-        [ html (toHtml svgHtml)
+        [ html (toHtml svgHtml) ]
 
-        --        , button [] { label = text "Download", onPress = Just (DownloadSvg (toString 1 svgHtml)) }
-        ]
+
+type Dummy
+    = None
+
+
+getSvgString : SvgModel -> Bool -> String
+getSvgString model indent =
+    let
+        dummyFun : Float -> Float -> Dummy
+        dummyFun =
+            \f f1 -> None
+
+        svgHtml : Svg.String.Html Dummy
+        svgHtml =
+            renderChart model dummyFun (renderFrettings model)
+    in
+    toString
+        (if indent then
+            1
+
+         else
+            0
+        )
+        svgHtml
 
 
 renderFrettings : SvgModel -> List (Svg msg)
