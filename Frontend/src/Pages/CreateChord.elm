@@ -5,8 +5,7 @@ import Element.Events exposing (..)
 import Element.Font as Font
 import Element.Input exposing (button)
 import File.Download as Download
-import Layout.Helper as LH
-import Layout.Helpers exposing (..)
+import Layout.Helper as LH exposing (..)
 import SvgChord.Logic exposing (initSvgModel, modelClicked)
 import SvgChord.Render exposing (createChordView, getSvgString)
 import SvgChord.Types exposing (SvgModel)
