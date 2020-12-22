@@ -4,18 +4,22 @@ import Browser
 import Browser.Navigation as Nav
 import Element exposing (Element, layout, map)
 import Html exposing (Html)
-import Pages.CreateChord exposing (initModel, page, update)
+import Pages.ChordsOverview as ChordsOverview
+import Pages.CreateChord as CreateChord
 import Url exposing (Url)
 
 
 type Model
-    = CreateChord_Model Pages.CreateChord.Model
-    | Unknown
+    = CreateChord_Model CreateChord.Model
+    | ChordOverview_Model ChordsOverview.Model
+    | NotFound
 
 
 type Msg
-    = CreateChord_Msg Pages.CreateChord.Msg
-    | Empty
+    = CreateChord_Msg CreateChord.Msg
+    | ChordsOverview_Msg ChordsOverview.Msg
+    | UrlRequest
+    | UrlChange
 
 
 
@@ -26,15 +30,23 @@ view : Model -> Browser.Document Msg
 view model =
     case model of
         CreateChord_Model m ->
-            Browser.Document "BasicTitle" [ fromChordPage (page m) ]
+            Browser.Document "Create Chord" [ fromChordPage (CreateChord.page m) ]
 
-        Unknown ->
-            Browser.Document "BasicTitle" []
+        ChordOverview_Model m ->
+            Browser.Document "Create Chord" [ fromOverviewPage (ChordsOverview.page m) ]
+
+        NotFound ->
+            Browser.Document "Redirect" []
 
 
-fromChordPage : Element Pages.CreateChord.Msg -> Html Msg
+fromChordPage : Element CreateChord.Msg -> Html Msg
 fromChordPage p =
     layout [] (map CreateChord_Msg p)
+
+
+fromOverviewPage : Element ChordsOverview.Msg -> Html Msg
+fromOverviewPage p =
+    layout [] (map ChordsOverview_Msg p)
 
 
 update : Msg -> Model -> ( Model, Cmd Msg )
@@ -43,7 +55,7 @@ update msg model =
         CreateChord_Model m ->
             case msg of
                 CreateChord_Msg cMsg ->
-                    fromCreateChordUpdate (Pages.CreateChord.update cMsg m)
+                    fromCreateChordUpdate (CreateChord.update cMsg m)
 
                 _ ->
                     ( model, Cmd.none )
@@ -52,7 +64,7 @@ update msg model =
             ( model, Cmd.none )
 
 
-fromCreateChordUpdate : ( Pages.CreateChord.Model, Cmd Pages.CreateChord.Msg ) -> ( Model, Cmd Msg )
+fromCreateChordUpdate : ( CreateChord.Model, Cmd CreateChord.Msg ) -> ( Model, Cmd Msg )
 fromCreateChordUpdate ( model, msg ) =
     ( CreateChord_Model model, Cmd.map CreateChord_Msg msg )
 
@@ -76,11 +88,13 @@ routing : String -> ( Model, Cmd Msg )
 routing path =
     case path of
         "/createChord" ->
-            ( CreateChord_Model initModel, Cmd.none )
+            ( CreateChord_Model CreateChord.initModel, Cmd.none )
 
-        --             { chordList = [], status = None, svgModel = Just initSvgModel }, Cmd.none )
+        "/chordOverView" ->
+            ( ChordOverview_Model ChordsOverview.initModel, Cmd.none )
+
         _ ->
-            ( Unknown, Nav.load "/createChord" )
+            ( NotFound, Nav.load "/createChord" )
 
 
 onUrlRequest : Browser.UrlRequest -> Msg
@@ -89,7 +103,7 @@ onUrlRequest urlReq =
         a =
             Debug.log "onUrlRequests" urlReq
     in
-    Empty
+    UrlRequest
 
 
 onUrlChange : Url.Url -> Msg
@@ -98,4 +112,4 @@ onUrlChange url =
         a =
             Debug.log "onChange" url
     in
-    Empty
+    UrlChange
