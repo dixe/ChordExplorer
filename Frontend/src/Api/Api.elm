@@ -1,4 +1,4 @@
-module Api.Api exposing (Chord(..), loadChords)
+module Api.Api exposing (ApiChord(..), loadChords)
 
 import Base64 as Base64
 import Http exposing (get)
@@ -7,11 +7,11 @@ import Svg exposing (Svg)
 import SvgParser exposing (parse)
 
 
-type Chord msg
-    = Chord { id : Int, name : String, svg : Svg msg, tags : List String }
+type ApiChord msg
+    = ApiChord { id : Int, name : String, svg : Svg msg, tags : List String }
 
 
-loadChords : (Result String (List (Chord msg)) -> msg) -> Cmd msg
+loadChords : (Result String (List (ApiChord msg)) -> msg) -> Cmd msg
 loadChords toMsg =
     Http.get
         { url = "http://localhost:3000/chords"
@@ -23,7 +23,7 @@ loadChords toMsg =
 -- TODO maybe return Result String a
 
 
-fromResult : (Result String (List (Chord msg)) -> msg) -> Decoder (List (Chord msg)) -> Result Http.Error String -> msg
+fromResult : (Result String (List (ApiChord msg)) -> msg) -> Decoder (List (ApiChord msg)) -> Result Http.Error String -> msg
 fromResult toMsg decoder result =
     case result of
         Ok allText ->
@@ -43,19 +43,19 @@ decode decoder input =
             Err (errorToString err)
 
 
-chordsDecoder : Decoder (List (Chord msg))
+chordsDecoder : Decoder (List (ApiChord msg))
 chordsDecoder =
     list chordDecoder
 
 
-chordDecoder : Decoder (Chord msg)
+chordDecoder : Decoder (ApiChord msg)
 chordDecoder =
     map4 createChord idDecoder nameDecoder svgDecoder tagsDecoder
 
 
-createChord : Int -> String -> Svg msg -> List String -> Chord msg
+createChord : Int -> String -> Svg msg -> List String -> ApiChord msg
 createChord id name svg tags =
-    Chord { id = id, name = name, svg = svg, tags = tags }
+    ApiChord { id = id, name = name, svg = svg, tags = tags }
 
 
 idDecoder : Decoder Int

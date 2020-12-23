@@ -37,13 +37,14 @@ type alias Page =
     , toHtmlFun : Model -> List (Html Msg)
     , model : Model
     , parseMsg : Msg -> Model -> ( Model, Cmd Msg )
+    , initMsg : Cmd Msg
     }
 
 
 allPages : List Page
 allPages =
-    [ Page "/createChord" "Create Chord" isCreateChord createChordPage (CreateChord_Model CreateChord.initModel) parseMsgCreateChord
-    , Page "/chordsOverview" "Overview" isChordOverview chordsOverviewPage (ChordsOverview_Model ChordsOverview.initModel) parseMsgOverview
+    [ Page "/createChord" "Create Chord" isCreateChord createChordPage (CreateChord_Model CreateChord.initModel) parseMsgCreateChord Cmd.none
+    , Page "/chordsOverview" "Overview" isChordOverview chordsOverviewPage (ChordsOverview_Model ChordsOverview.initModel) parseMsgOverview chordsOverviewInitMsg
     ]
 
 
@@ -83,6 +84,11 @@ isCreateChord model =
 
 
 -- CHORDS OVERVIEW
+
+
+chordsOverviewInitMsg : Cmd Msg
+chordsOverviewInitMsg =
+    Cmd.map ChordsOverview_Msg ChordsOverview.initMsg
 
 
 chordsOverviewPage : Model -> List (Html Msg)
@@ -137,9 +143,6 @@ view model =
     let
         r =
             findPageFromModel model allPages
-
-        d =
-            Debug.log "Page" r
     in
     fromPage model r
 
@@ -193,6 +196,15 @@ pageModel page =
     page.model
 
 
+pageMsg : Page -> Cmd Msg
+pageMsg page =
+    let
+        d =
+            Debug.log "PageMsg" page
+    in
+    page.initMsg
+
+
 update : Msg -> Model -> ( Model, Cmd Msg )
 update msg model =
     let
@@ -214,18 +226,16 @@ init url key =
 
 routing : String -> List Page -> ( Model, Cmd Msg )
 routing path pages =
-    -- find Pages from pages that matches
-    -- use Page to generate (Model, Cmd Msg)
     let
         page =
             first isPath path pages
 
         d =
-            Debug.log "Routeing Page " page
+            Debug.log "Routing" path
     in
     case page of
         Just p ->
-            ( pageModel p, Cmd.none )
+            ( pageModel p, pageMsg p )
 
         _ ->
             ( NotFound, Nav.load "/createChord" )
