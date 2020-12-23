@@ -1,8 +1,9 @@
-module Api.Api exposing (ApiChord(..), loadChords)
+module Api.Api exposing (ApiChord(..), UploadChord, UploadId, loadChords, uploadChord)
 
 import Base64 as Base64
 import Http exposing (get)
 import Json.Decode exposing (Decoder, andThen, decodeString, errorToString, fail, field, float, int, list, map, map4, string, succeed)
+import Json.Encode
 import Svg exposing (Svg)
 import SvgParser exposing (parse)
 
@@ -11,11 +12,28 @@ type ApiChord msg
     = ApiChord { id : Int, name : String, svg : Svg msg, tags : List String }
 
 
+type alias UploadChord =
+    { name : String, svg : String, tags : List String }
+
+
+type alias UploadId =
+    { id : Int }
+
+
 loadChords : (Result String (List (ApiChord msg)) -> msg) -> Cmd msg
 loadChords toMsg =
     Http.get
         { url = "http://localhost:3000/chords"
         , expect = Http.expectString (fromResult toMsg chordsDecoder)
+        }
+
+
+uploadChord : UploadChord -> (Result String UploadId -> msg) -> Cmd msg
+uploadChord chord toMsg =
+    Http.post
+        { url = "http://localhost:3000/chords"
+        , body = Http.jsonBody (encodeUploadChord chord)
+        , expect = Http.expectString (fromResult toMsg uploadIdDecoder)
         }
 
 
@@ -42,7 +60,7 @@ httpErrorToString err =
 -- TODO maybe return Result String a
 
 
-fromResult : (Result String (List (ApiChord msg)) -> msg) -> Decoder (List (ApiChord msg)) -> Result Http.Error String -> msg
+fromResult : (Result String a -> msg) -> Decoder a -> Result Http.Error String -> msg
 fromResult toMsg decoder result =
     case result of
         Ok allText ->
@@ -50,6 +68,10 @@ fromResult toMsg decoder result =
 
         Err errMsg ->
             toMsg (Err (httpErrorToString errMsg))
+
+
+
+-- DECODERS
 
 
 decode : Decoder a -> String -> Result String a
@@ -109,6 +131,33 @@ svgDecoderM s =
 
         Err err ->
             fail err
+
+
+uploadIdDecoder : Decoder UploadId
+uploadIdDecoder =
+    Json.Decode.map (\id -> { id = id }) idDecoder
+
+
+
+-- ENCODERS
+
+
+encodeUploadChord : UploadChord -> Json.Encode.Value
+encodeUploadChord chord =
+    Json.Encode.object
+        [ ( "name", Json.Encode.string chord.name )
+        , ( "svgBase64", Json.Encode.string (svgStringToBase64 chord.svg) )
+        , ( "tags", Json.Encode.list Json.Encode.string chord.tags )
+        ]
+
+
+
+-- SVG FUNCTIONS
+
+
+svgStringToBase64 : String -> String
+svgStringToBase64 svg =
+    Base64.encode svg
 
 
 stringToSvg : String -> Result String (Svg msg)

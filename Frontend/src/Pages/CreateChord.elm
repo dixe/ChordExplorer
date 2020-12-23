@@ -1,5 +1,6 @@
 module Pages.CreateChord exposing (Model, Msg, initModel, page, update)
 
+import Api.Api exposing (UploadChord, UploadId, uploadChord)
 import Element exposing (..)
 import Element.Events exposing (..)
 import Element.Font as Font
@@ -14,6 +15,8 @@ import SvgChord.Types exposing (SvgModel)
 type Msg
     = SvgClickPos Float Float
     | SvgUpdateName String
+    | UploadSvg
+    | Uploaded (Result String UploadId)
 
 
 type alias Model =
@@ -31,11 +34,22 @@ page model =
         [ LH.header
         , LH.spacerLine
         , createChordView model SvgClickPos
-        , Element.Input.text [ width shrink ]
+        , viewControls model
+        ]
+
+
+viewControls : Model -> Element Msg
+viewControls model =
+    Element.row []
+        [ Element.Input.text [ width shrink ]
             { label = Element.Input.labelHidden "Name"
             , onChange = SvgUpdateName
             , placeholder = Just (Element.Input.placeholder [] (text "Name"))
             , text = model.name
+            }
+        , Element.Input.button []
+            { onPress = Just UploadSvg
+            , label = text "UploadSvg"
             }
         ]
 
@@ -49,12 +63,22 @@ update msg model =
         SvgUpdateName name ->
             ( { model | name = name }, Cmd.none )
 
+        UploadSvg ->
+            let
+                chord =
+                    { name = model.name, svg = getSvgString model True, tags = [] }
+            in
+            ( model, uploadChord chord Uploaded )
+
+        Uploaded _ ->
+            -- TODO handle upload error and success
+            ( model, Cmd.none )
+
+
+
+-- TODO hande
+
 
 updateSvgModelClick : Float -> Float -> SvgModel -> SvgModel
 updateSvgModelClick x y model =
     modelClicked { x = x, y = y } model
-
-
-saveSvg : String -> Cmd Msg
-saveSvg content =
-    Download.string "chord.svg" "application/svg" content
