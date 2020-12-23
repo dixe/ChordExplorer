@@ -12,6 +12,8 @@ type alias ImgInfo =
     , numStrings : Int
     , numFrets : Int
     , diameter : Float
+    , imgHeight : Float
+    , imgWidth : Float
     }
 
 
@@ -53,4 +55,4 @@ type alias Frets =
 
 
 type alias SvgModel =
-    { info : ImgInfo, clickPos : Maybe Pos, frets : Frets }
+    { info : ImgInfo, clickPos : Maybe Pos, frets : Frets, name : String }

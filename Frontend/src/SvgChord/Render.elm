@@ -15,10 +15,39 @@ createChordView model msgFun =
     let
         svgHtml : Svg.String.Html msg
         svgHtml =
-            renderChart model msgFun (renderFrettings model)
+            renderChart model msgFun
     in
     column []
         [ html (toHtml svgHtml) ]
+
+
+renderName : SvgModel -> ( List (Svg msg), Pos )
+renderName model =
+    case model.name of
+        "" ->
+            ( [], { x = 0, y = 0 } )
+
+        name ->
+            let
+                fontSizeInt =
+                    28
+
+                offset =
+                    { x = 0
+                    , y = nameHeight
+                    }
+
+                nameSvg =
+                    Svg.String.text_
+                        [ x (String.fromFloat ((model.info.width / 2) + model.info.x))
+                        , y (String.fromInt fontSizeInt)
+                        , fontSize (String.fromInt fontSizeInt)
+                        , textAnchor "middle"
+                        , attribute "font-weight" "bold"
+                        ]
+                        [ Svg.String.text model.name ]
+            in
+            ( [ nameSvg ], offset )
 
 
 type Dummy
@@ -34,7 +63,7 @@ getSvgString model indent =
 
         svgHtml : Svg.String.Html Dummy
         svgHtml =
-            renderChart model dummyFun (renderFrettings model)
+            renderChart model dummyFun
     in
     toString
         (if indent then
@@ -172,17 +201,41 @@ onClickSvg msgFun =
     on "click" (mouseXY msgFun)
 
 
-renderChart : SvgModel -> (Float -> Float -> msg) -> List (Svg msg) -> Svg.String.Html msg
-renderChart model msgFun nodes =
+renderChart : SvgModel -> (Float -> Float -> msg) -> Svg.String.Html msg
+renderChart model msgFun =
+    let
+        ( svgName, offSetPos ) =
+            renderName model
+
+        adjustedModel =
+            posAdjustedModel model offSetPos
+
+        frettings =
+            renderFrettings adjustedModel
+
+        d =
+            Debug.log "info" model.info
+    in
     svg
-        [ width "400"
-        , height "400"
-        , viewBox "0 0 400 400"
+        [ width (String.fromFloat model.info.imgWidth)
+        , height (String.fromFloat model.info.imgHeight)
+        , viewBox ("0 0 " ++ String.fromFloat model.info.imgWidth ++ " " ++ String.fromFloat model.info.imgHeight)
         , onClickSvg msgFun
         ]
-        (renderBaseChart model.info
-            ++ nodes
+        (svgName
+            ++ renderBaseChart adjustedModel.info
+            ++ frettings
         )
+
+
+posAdjustedModel : SvgModel -> Pos -> SvgModel
+posAdjustedModel model pos =
+    { model | info = posAdjustedInfo model.info pos }
+
+
+posAdjustedInfo : ImgInfo -> Pos -> ImgInfo
+posAdjustedInfo info offSet =
+    { info | x = info.x + offSet.x, y = info.y + offSet.y }
 
 
 renderBaseChart : ImgInfo -> List (Svg msg)
@@ -257,6 +310,11 @@ y1 value =
 y2 : Float -> Attribute msg
 y2 value =
     attribute "y2" (String.fromFloat value)
+
+
+textAnchor : String -> Attribute msg
+textAnchor value =
+    attribute "text-anchor" value
 
 
 line : List (Attribute msg) -> List (Svg msg) -> Svg msg

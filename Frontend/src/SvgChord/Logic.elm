@@ -1,4 +1,4 @@
-module SvgChord.Logic exposing (getFretsPos, initSvgModel, modelClicked)
+module SvgChord.Logic exposing (getFretsPos, initSvgModel, modelClicked, nameHeight)
 
 import SvgChord.Types exposing (..)
 
@@ -8,8 +8,26 @@ modelClicked pos model =
     let
         info =
             model.info
+
+        adjustedPos =
+            getAdjustedPos model pos
     in
-    { model | frets = updateFrets model.frets info pos }
+    { model | frets = updateFrets model.frets info adjustedPos }
+
+
+nameHeight : Float
+nameHeight =
+    35
+
+
+getAdjustedPos : SvgModel -> Pos -> Pos
+getAdjustedPos model pos =
+    case model.name of
+        "" ->
+            pos
+
+        _ ->
+            { pos | y = pos.y - nameHeight }
 
 
 getClosestStringNum : ImgInfo -> Float -> Int
@@ -32,7 +50,7 @@ getClosestFretNum info y =
 
 initSvgModel : SvgModel
 initSvgModel =
-    { clickPos = Nothing, info = createDefaultImgInfo, frets = initFrets }
+    { clickPos = Nothing, info = createDefaultImgInfo, frets = initFrets, name = "" }
 
 
 initFrets : Frets
@@ -61,22 +79,30 @@ createDefaultImgInfo =
         numFrets =
             4
 
-        imgHeight =
+        fretboardHeight =
             fretSpace * numFrets
 
-        imgWidth =
+        fretboardWidth =
             stringSpace * (numStrings - 1)
+
+        imgHeight =
+            400
+
+        imgWidth =
+            400
     in
     { x = 60
     , y = 60
     , lineWidth = 4
     , diameter = 9
-    , width = imgWidth
-    , height = imgHeight
+    , width = fretboardWidth
+    , height = fretboardHeight
     , stringSpace = stringSpace
     , fretSpace = fretSpace
     , numStrings = numStrings
     , numFrets = numFrets
+    , imgHeight = imgHeight
+    , imgWidth = imgWidth
     }
 
 

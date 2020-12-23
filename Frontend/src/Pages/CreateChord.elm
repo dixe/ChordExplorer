@@ -13,6 +13,7 @@ import SvgChord.Types exposing (SvgModel)
 
 type Msg
     = SvgClickPos Float Float
+    | SvgUpdateName String
 
 
 type alias Model =
@@ -30,6 +31,12 @@ page model =
         [ LH.header
         , LH.spacerLine
         , createChordView model SvgClickPos
+        , Element.Input.text [ width shrink ]
+            { label = Element.Input.labelHidden "Name"
+            , onChange = SvgUpdateName
+            , placeholder = Just (Element.Input.placeholder [] (text "Name"))
+            , text = model.name
+            }
         ]
 
 
@@ -38,6 +45,9 @@ update msg model =
     case msg of
         SvgClickPos x y ->
             ( updateSvgModelClick x y model, Cmd.none )
+
+        SvgUpdateName name ->
+            ( { model | name = name }, Cmd.none )
 
 
 updateSvgModelClick : Float -> Float -> SvgModel -> SvgModel
