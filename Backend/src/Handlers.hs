@@ -33,8 +33,8 @@ fetchChordsHandler = do
   return chords
 
 
-createChordHandler :: UploadChord -> Handler Int64
+createChordHandler :: UploadChord -> Handler Id
 createChordHandler c = do
   liftIO $ putStrLn "create chord"
   uid <- liftIO $ createChordDB c
-  return uid
+  return $ Id uid

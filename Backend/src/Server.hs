@@ -14,6 +14,7 @@ import Prelude ()
 import Prelude.Compat
 import Network.Wai.Middleware.Cors
 
+
 import Servant
 import ApiType
 import Handlers
@@ -30,5 +31,9 @@ server = fetchChordsHandler
 chordAPI :: Proxy ChordApi
 chordAPI = Proxy
 
-app1 :: Application
-app1 = simpleCors $ serve chordAPI server
+
+
+app :: Application
+app =
+  cors ( const $ Just (simpleCorsResourcePolicy  { corsRequestHeaders = ["Content-Type"] }) )
+  $ serve chordAPI server

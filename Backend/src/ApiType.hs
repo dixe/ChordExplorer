@@ -19,9 +19,11 @@ import GHC.Generics
 type ChordApi =
   "chords" :> Get '[JSON] [Chord]
   :<|> "chords" :> Capture "chordId" Int64 :> Get '[JSON] Chord
-  :<|> "chords" :> ReqBody '[JSON] UploadChord :> Post '[JSON] Int64
+  :<|> "chords" :> ReqBody '[JSON] UploadChord :> Post '[JSON] Id
 
 
+
+data Id = Id { id :: Int64} deriving (Eq, Show, Generic)
 
 data UploadChord = UploadChord {
   name :: String,
@@ -44,3 +46,7 @@ instance FromJSON UploadChord
 instance ToJSON Chord
 
 instance FromJSON Chord
+
+instance ToJSON Id
+
+instance FromJSON Id

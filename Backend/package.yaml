@@ -41,6 +41,7 @@ dependencies:
 - transformers
 - esqueleto
 - wai-cors
+- wai-logger
 
 
 library:
