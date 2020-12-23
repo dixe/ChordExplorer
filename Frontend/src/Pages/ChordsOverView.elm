@@ -12,8 +12,7 @@ import Svg exposing (Svg)
 
 
 type alias Model =
-    { chords : List Chord
-    }
+    Result String (List Chord)
 
 
 type alias Chord =
@@ -32,7 +31,7 @@ initMsg =
 
 initModel : Model
 initModel =
-    { chords = [] }
+    Err "Not loaded"
 
 
 page : Model -> Element Msg
@@ -40,7 +39,7 @@ page model =
     column [ width fill, spacing 10 ]
         [ LH.header
         , LH.spacerLine
-        , viewChords model.chords
+        , viewModel model
         ]
 
 
@@ -61,10 +60,10 @@ update msg model =
         ChordsLoaded res ->
             case res of
                 Ok chords ->
-                    ( { chords = mapChords chords }, Cmd.none )
+                    ( Ok (mapChords chords), Cmd.none )
 
-                Err _ ->
-                    ( { chords = [] }, Cmd.none )
+                Err errMsg ->
+                    ( Err errMsg, Cmd.none )
 
 
 mapChords : List (ApiChord Msg) -> List Chord
@@ -79,6 +78,16 @@ mapChord (ApiChord chord) =
 
 
 -- VIEW
+
+
+viewModel : Model -> Element Msg
+viewModel model =
+    case model of
+        Ok chords ->
+            viewChords chords
+
+        Err msg ->
+            text msg
 
 
 viewChords : List Chord -> Element Msg

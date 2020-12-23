@@ -19,6 +19,25 @@ loadChords toMsg =
         }
 
 
+httpErrorToString : Http.Error -> String
+httpErrorToString err =
+    case err of
+        Http.BadUrl s ->
+            "Bad url : " ++ s
+
+        Http.Timeout ->
+            "Http Timeout"
+
+        Http.NetworkError ->
+            "NetworkError"
+
+        Http.BadStatus status ->
+            "Err status " ++ String.fromInt status
+
+        Http.BadBody s ->
+            "Bad body " ++ s
+
+
 
 -- TODO maybe return Result String a
 
@@ -29,8 +48,8 @@ fromResult toMsg decoder result =
         Ok allText ->
             toMsg (decode decoder allText)
 
-        Err _ ->
-            toMsg (Err "")
+        Err errMsg ->
+            toMsg (Err (httpErrorToString errMsg))
 
 
 decode : Decoder a -> String -> Result String a
