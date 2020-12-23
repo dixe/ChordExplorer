@@ -1,4 +1,4 @@
-module SvgChord.Logic exposing (getFretsPos, initSvgModel, modelClicked, nameHeight)
+module SvgChord.Logic exposing (getFretsPos, initSvgModel, modelClicked, nameHeight, setName)
 
 import SvgChord.Types exposing (..)
 
@@ -13,6 +13,11 @@ modelClicked pos model =
             getAdjustedPos model pos
     in
     { model | frets = updateFrets model.frets info adjustedPos }
+
+
+setName : String -> SvgModel -> SvgModel
+setName name model =
+    { model | name = name }
 
 
 nameHeight : Float

@@ -44,6 +44,11 @@ buttonLayout =
     ]
 
 
+defSpacing : Attribute msg
+defSpacing =
+    spacing 10
+
+
 
 -- COLORS
 
@@ -73,7 +78,7 @@ darkGray =
 
 
 blue =
-    Element.rgb 0 0 0.8
+    Element.rgb255 51 204 225
 
 
 red =
