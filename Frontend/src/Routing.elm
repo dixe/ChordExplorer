@@ -9,9 +9,13 @@ import Pages.CreateChord as CreateChord
 import Url exposing (Url)
 
 
+
+--PAGES
+
+
 type Model
     = CreateChord_Model CreateChord.Model
-    | ChordOverview_Model ChordsOverview.Model
+    | ChordsOverview_Model ChordsOverview.Model
     | NotFound
 
 
@@ -22,76 +26,206 @@ type Msg
     | UrlChange
 
 
+type alias Path =
+    String
+
+
+type alias Page =
+    { path : Path
+    , title : String
+    , modelIsFun : Model -> Bool
+    , toHtmlFun : Model -> List (Html Msg)
+    , model : Model
+    , parseMsg : Msg -> Model -> ( Model, Cmd Msg )
+    }
+
+
+allPages : List Page
+allPages =
+    [ Page "/createChord" "Create Chord" isCreateChord createChordPage (CreateChord_Model CreateChord.initModel) parseMsgCreateChord
+    , Page "/chordsOverview" "Overview" isChordOverview chordsOverviewPage (ChordsOverview_Model ChordsOverview.initModel) parseMsgOverview
+    ]
+
+
+
+-- CREATE CHORDS
+
+
+createChordPage : Model -> List (Html Msg)
+createChordPage model =
+    case model of
+        CreateChord_Model m ->
+            [ layout [] (map CreateChord_Msg (CreateChord.page m)) ]
+
+        _ ->
+            []
+
+
+parseMsgCreateChord : Msg -> Model -> ( Model, Cmd Msg )
+parseMsgCreateChord msg model =
+    case ( msg, model ) of
+        ( CreateChord_Msg cMsg, CreateChord_Model m ) ->
+            updateInner CreateChord.update CreateChord_Model CreateChord_Msg cMsg m
+
+        _ ->
+            ( model, Cmd.none )
+
+
+isCreateChord : Model -> Bool
+isCreateChord model =
+    case model of
+        CreateChord_Model m ->
+            True
+
+        _ ->
+            False
+
+
+
+-- CHORDS OVERVIEW
+
+
+chordsOverviewPage : Model -> List (Html Msg)
+chordsOverviewPage model =
+    case model of
+        ChordsOverview_Model m ->
+            [ layout [] (map ChordsOverview_Msg (ChordsOverview.page m)) ]
+
+        _ ->
+            []
+
+
+parseMsgOverview : Msg -> Model -> ( Model, Cmd Msg )
+parseMsgOverview msg model =
+    case ( msg, model ) of
+        ( ChordsOverview_Msg cMsg, ChordsOverview_Model m ) ->
+            updateInner ChordsOverview.update ChordsOverview_Model ChordsOverview_Msg cMsg m
+
+        _ ->
+            ( model, Cmd.none )
+
+
+isChordOverview : Model -> Bool
+isChordOverview model =
+    case model of
+        ChordsOverview_Model m ->
+            True
+
+        _ ->
+            False
+
+
+
+-- PAGE UPDATE HELPER
+
+
+updateInner : (msg -> model -> ( model, Cmd msg )) -> (model -> Model) -> (msg -> Msg) -> msg -> model -> ( Model, Cmd Msg )
+updateInner updateFun toModel mapMsg msg model =
+    let
+        ( updatedModel, innerMsg ) =
+            updateFun msg model
+    in
+    ( toModel updatedModel, Cmd.map mapMsg innerMsg )
+
+
 
 -- VIEW
 
 
 view : Model -> Browser.Document Msg
 view model =
-    case model of
-        CreateChord_Model m ->
-            Browser.Document "Create Chord" [ fromChordPage (CreateChord.page m) ]
+    let
+        r =
+            findPageFromModel model allPages
 
-        ChordOverview_Model m ->
-            Browser.Document "Create Chord" [ fromOverviewPage (ChordsOverview.page m) ]
+        d =
+            Debug.log "Page" r
+    in
+    fromPage model r
 
-        NotFound ->
+
+fromPage : Model -> Maybe Page -> Browser.Document Msg
+fromPage model page =
+    case page of
+        Just r ->
+            Browser.Document r.title (pageToHtml model r)
+
+        Nothing ->
             Browser.Document "Redirect" []
 
 
-fromChordPage : Element CreateChord.Msg -> Html Msg
-fromChordPage p =
-    layout [] (map CreateChord_Msg p)
+pageToHtml : Model -> Page -> List (Html Msg)
+pageToHtml model r =
+    r.toHtmlFun model
 
 
-fromOverviewPage : Element ChordsOverview.Msg -> Html Msg
-fromOverviewPage p =
-    layout [] (map ChordsOverview_Msg p)
+findPageFromModel : Model -> List Page -> Maybe Page
+findPageFromModel model pages =
+    first isPage model pages
+
+
+isPage : Model -> Page -> Bool
+isPage model page =
+    page.modelIsFun model
+
+
+first : (a -> b -> Bool) -> a -> List b -> Maybe b
+first isFun target inputs =
+    case inputs of
+        [] ->
+            Nothing
+
+        h :: t ->
+            if isFun target h then
+                Just h
+
+            else
+                first isFun target t
+
+
+isPath : String -> Page -> Bool
+isPath path page =
+    path == page.path
+
+
+pageModel : Page -> Model
+pageModel page =
+    page.model
 
 
 update : Msg -> Model -> ( Model, Cmd Msg )
 update msg model =
-    case model of
-        CreateChord_Model m ->
-            case msg of
-                CreateChord_Msg cMsg ->
-                    fromCreateChordUpdate (CreateChord.update cMsg m)
+    let
+        page =
+            first isPage model allPages
+    in
+    case page of
+        Just p ->
+            p.parseMsg msg model
 
-                _ ->
-                    ( model, Cmd.none )
-
-        _ ->
+        Nothing ->
             ( model, Cmd.none )
-
-
-fromCreateChordUpdate : ( CreateChord.Model, Cmd CreateChord.Msg ) -> ( Model, Cmd Msg )
-fromCreateChordUpdate ( model, msg ) =
-    ( CreateChord_Model model, Cmd.map CreateChord_Msg msg )
 
 
 init : Url -> Nav.Key -> ( Model, Cmd Msg )
 init url key =
+    routing url.path allPages
+
+
+routing : String -> List Page -> ( Model, Cmd Msg )
+routing path pages =
+    -- find Pages from pages that matches
+    -- use Page to generate (Model, Cmd Msg)
     let
-        a =
-            Debug.log "onChangeUrl" url
+        page =
+            first isPath path pages
 
-        b =
-            Debug.log "onChangeKey" key
-
-        isCreate =
-            url.path == "/createChord"
+        d =
+            Debug.log "Routeing Page " page
     in
-    routing url.path
-
-
-routing : String -> ( Model, Cmd Msg )
-routing path =
-    case path of
-        "/createChord" ->
-            ( CreateChord_Model CreateChord.initModel, Cmd.none )
-
-        "/chordOverView" ->
-            ( ChordOverview_Model ChordsOverview.initModel, Cmd.none )
+    case page of
+        Just p ->
+            ( pageModel p, Cmd.none )
 
         _ ->
             ( NotFound, Nav.load "/createChord" )
