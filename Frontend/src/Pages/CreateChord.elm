@@ -40,14 +40,19 @@ page model =
 
 viewControls : Model -> Element Msg
 viewControls model =
-    Element.row []
-        [ Element.Input.text [ width shrink ]
+    Element.row
+        [ paddingXY 10 0
+        , spacing 10
+        ]
+        [ Element.Input.text
+            [ width (minimum 100 shrink)
+            ]
             { label = Element.Input.labelHidden "Name"
             , onChange = SvgUpdateName
             , placeholder = Just (Element.Input.placeholder [] (text "Name"))
             , text = model.name
             }
-        , Element.Input.button []
+        , Element.Input.button LH.buttonLayout
             { onPress = Just UploadSvg
             , label = text "UploadSvg"
             }
@@ -73,10 +78,6 @@ update msg model =
         Uploaded _ ->
             -- TODO handle upload error and success
             ( model, Cmd.none )
-
-
-
--- TODO hande
 
 
 updateSvgModelClick : Float -> Float -> SvgModel -> SvgModel

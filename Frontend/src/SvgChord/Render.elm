@@ -212,9 +212,6 @@ renderChart model msgFun =
 
         frettings =
             renderFrettings adjustedModel
-
-        d =
-            Debug.log "info" model.info
     in
     svg
         [ width (String.fromFloat model.info.imgWidth)

@@ -198,10 +198,6 @@ pageModel page =
 
 pageMsg : Page -> Cmd Msg
 pageMsg page =
-    let
-        d =
-            Debug.log "PageMsg" page
-    in
     page.initMsg
 
 
@@ -229,9 +225,6 @@ routing path pages =
     let
         page =
             first isPath path pages
-
-        d =
-            Debug.log "Routing" path
     in
     case page of
         Just p ->
@@ -243,17 +236,9 @@ routing path pages =
 
 onUrlRequest : Browser.UrlRequest -> Msg
 onUrlRequest urlReq =
-    let
-        a =
-            Debug.log "onUrlRequests" urlReq
-    in
     UrlRequest
 
 
 onUrlChange : Url.Url -> Msg
 onUrlChange url =
-    let
-        a =
-            Debug.log "onChange" url
-    in
     UrlChange

@@ -49,10 +49,6 @@ page model =
 
 update : Msg -> Model -> ( Model, Cmd Msg )
 update msg model =
-    let
-        d =
-            Debug.log "Update Overview" msg
-    in
     case msg of
         LoadChords ->
             ( model, loadChords ChordsLoaded )

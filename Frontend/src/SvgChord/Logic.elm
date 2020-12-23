@@ -108,10 +108,6 @@ createDefaultImgInfo =
 
 updateFrets : Frets -> ImgInfo -> Pos -> Frets
 updateFrets frets info pos =
-    let
-        debug =
-            Debug.log "Frets" frets
-    in
     case getMaybeFretCandidate info pos of
         Nothing ->
             frets
@@ -145,12 +141,6 @@ getMaybeFretCandidate info pos =
 
         fretNum =
             getClosestFretNum info pos.y
-
-        a =
-            Debug.log "stringNum " stringNum
-
-        b =
-            Debug.log "fretNum " fretNum
     in
     if validFret info fretNum then
         case stringNum of
