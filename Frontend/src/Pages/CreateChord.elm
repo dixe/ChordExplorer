@@ -69,10 +69,15 @@ viewControls model =
 
 uploadControls : Model -> Element Msg
 uploadControls model =
-    Element.Input.button LH.buttonLayout
-        { onPress = Just UploadSvg
-        , label = text "UploadSvg"
-        }
+    case model.svgModel.name of
+        "" ->
+            Element.none
+
+        name ->
+            Element.Input.button LH.buttonLayout
+                { onPress = Just UploadSvg
+                , label = text "UploadSvg"
+                }
 
 
 nameControls : Model -> Element Msg
