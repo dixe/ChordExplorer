@@ -11,7 +11,7 @@ type alias ImgInfo =
     , fretSpace : Float
     , numStrings : Int
     , numFrets : Int
-    , diameter : Float
+    , radius : Float
     , imgHeight : Float
     , imgWidth : Float
     }

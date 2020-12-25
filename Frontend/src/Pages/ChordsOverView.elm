@@ -2,6 +2,9 @@ module Pages.ChordsOverview exposing (Model, Msg, initModel, initMsg, page, upda
 
 import Api.Api exposing (ApiChord(..), loadChords)
 import Element exposing (..)
+import Element.Background as Background
+import Element.Border as Border
+import Element.Font as Font
 import Element.Input
 import Layout.Helper as LH exposing (..)
 import Svg exposing (Svg)
@@ -16,7 +19,7 @@ type alias Model =
 
 
 type alias Chord =
-    { id : Int, name : String, svg : Svg Msg, tags : List String }
+    { id : Int, name : String, svg : Svg Msg, tags : List String, svgHeight : Int, svgWidth : Int }
 
 
 type Msg
@@ -37,7 +40,7 @@ initModel =
 page : Model -> Element Msg
 page model =
     column [ width fill, spacing 10 ]
-        [ LH.header
+        [ LH.header "Overview"
         , LH.spacerLine
         , viewModel model
         ]
@@ -69,7 +72,13 @@ mapChords apiChords =
 
 mapChord : ApiChord Msg -> Chord
 mapChord (ApiChord chord) =
-    { id = chord.id, name = chord.name, svg = chord.svg, tags = chord.tags }
+    { id = chord.id
+    , name = chord.name
+    , svg = chord.svg.svg
+    , tags = chord.tags
+    , svgHeight = round chord.svg.height
+    , svgWidth = round chord.svg.width
+    }
 
 
 
@@ -88,19 +97,42 @@ viewModel model =
 
 viewChords : List Chord -> Element Msg
 viewChords chords =
-    wrappedRow [] (List.map viewChord chords)
+    wrappedRow [ spacing 10, padding 10 ] (List.map viewChord chords)
 
 
 viewChord : Chord -> Element Msg
 viewChord c =
-    column [ height (px 400), width (px 400) ] [ html c.svg, row [ centerX ] [ text c.name, viewTags c.tags ] ]
+    let
+        viewHeight =
+            c.svgHeight
+
+        viewWidth =
+            c.svgWidth
+    in
+    --TODO maybe set height and width, so all elements will be the same
+    column
+        [ Border.solid, Border.width 1, Border.rounded 40, padding 2 ]
+        [ viewSvg c.svgHeight c.svg
+        , viewName c.name
+        , viewTags viewWidth c.tags
+        ]
 
 
-viewTags : List String -> Element Msg
-viewTags tags =
-    row [ centerX, spacing 10, padding 10 ] (List.map viewTag tags)
+viewSvg : Int -> Svg Msg -> Element Msg
+viewSvg minHeight svg =
+    el [ height (fill |> minimum minHeight) ] (html svg)
+
+
+viewName : String -> Element Msg
+viewName name =
+    el [ Font.bold, paddingXY 30 5 ] (text name)
+
+
+viewTags : Int -> List String -> Element Msg
+viewTags maxWidth tags =
+    wrappedRow [ width (fill |> maximum maxWidth), centerX, spacing 10, paddingXY 30 5 ] (List.map viewTag tags)
 
 
 viewTag : String -> Element Msg
 viewTag tag =
-    el [] (text tag)
+    el [ Font.size 19 ] (text tag)

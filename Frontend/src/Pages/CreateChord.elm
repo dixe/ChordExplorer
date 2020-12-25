@@ -31,6 +31,16 @@ type alias Model =
     }
 
 
+tagsRowMaxLen : Int
+tagsRowMaxLen =
+    300
+
+
+textInputMaxLen : Int
+textInputMaxLen =
+    200
+
+
 initModel : Model
 initModel =
     { svgModel = initSvgModel
@@ -41,8 +51,8 @@ initModel =
 
 page : Model -> Element Msg
 page model =
-    column [ width fill ]
-        [ LH.header
+    column [ width fill, padding 10 ]
+        [ LH.header "Create chord"
         , LH.spacerLine
         , createChordView model.svgModel SvgClickPos
         , viewControls model
@@ -83,7 +93,7 @@ uploadControls model =
 nameControls : Model -> Element Msg
 nameControls model =
     Element.Input.text
-        []
+        [ width (fill |> maximum textInputMaxLen) ]
         { label = Element.Input.labelHidden "Name"
         , onChange = SvgUpdateName
         , placeholder = Just (Element.Input.placeholder [] (text "Name"))
@@ -96,7 +106,7 @@ tagsControls model =
     let
         tagInput =
             Element.Input.text
-                []
+                [ width (fill |> maximum textInputMaxLen) ]
                 { label = Element.Input.labelHidden "new Tag"
                 , onChange = UpdateCurrentTag
                 , placeholder = Just (Element.Input.placeholder [] (text "New tag"))
@@ -129,7 +139,7 @@ tagsControls model =
 
 renderTags : List String -> Element Msg
 renderTags tags =
-    Element.wrappedRow [ spacing 5 ]
+    Element.wrappedRow [ width (fill |> maximum tagsRowMaxLen), spacing 5 ]
         (List.map renderTag tags)
 
 

@@ -5,11 +5,18 @@ import Http exposing (get)
 import Json.Decode exposing (Decoder, andThen, decodeString, errorToString, fail, field, float, int, list, map, map4, string, succeed)
 import Json.Encode
 import Svg exposing (Svg)
-import SvgParser exposing (parse)
+import SvgParser exposing (Element, SvgNode, nodeToSvg, parseToNode)
 
 
 type ApiChord msg
-    = ApiChord { id : Int, name : String, svg : Svg msg, tags : List String }
+    = ApiChord { id : Int, name : String, svg : ApiSvg msg, tags : List String }
+
+
+type alias ApiSvg msg =
+    { svg : Svg msg
+    , width : Float
+    , height : Float
+    }
 
 
 type alias UploadChord =
@@ -94,9 +101,69 @@ chordDecoder =
     map4 createChord idDecoder nameDecoder svgDecoder tagsDecoder
 
 
-createChord : Int -> String -> Svg msg -> List String -> ApiChord msg
-createChord id name svg tags =
-    ApiChord { id = id, name = name, svg = svg, tags = tags }
+createChord : Int -> String -> SvgNode -> List String -> ApiChord msg
+createChord id name svgNode tags =
+    ApiChord { id = id, name = name, svg = nodeToApiSvg svgNode, tags = tags }
+
+
+nodeToApiSvg : SvgNode -> ApiSvg msg
+nodeToApiSvg node =
+    let
+        svg =
+            nodeToSvg node
+
+        width =
+            getWidth node
+
+        height =
+            getHeight node
+    in
+    { svg = svg
+    , height = height
+    , width = width
+    }
+
+
+getHeight : SvgNode -> Float
+getHeight node =
+    case node of
+        SvgParser.SvgElement e ->
+            getFromAttibs "height" e.attributes
+
+        _ ->
+            0
+
+
+getWidth : SvgNode -> Float
+getWidth node =
+    case node of
+        SvgParser.SvgElement e ->
+            getFromAttibs "width" e.attributes
+
+        _ ->
+            0
+
+
+getFromAttibs : String -> List SvgParser.SvgAttribute -> Float
+getFromAttibs name attribs =
+    let
+        attrib =
+            List.head (List.filter (\a -> Tuple.first a == name) attribs)
+
+        attribVal =
+            case attrib of
+                Just a ->
+                    String.toFloat (Tuple.second a)
+
+                Nothing ->
+                    Nothing
+    in
+    case attribVal of
+        Just a ->
+            a
+
+        Nothing ->
+            0
 
 
 idDecoder : Decoder Int
@@ -114,12 +181,12 @@ tagsDecoder =
     field "tags" (list string)
 
 
-svgDecoder : Decoder (Svg msg)
+svgDecoder : Decoder SvgNode
 svgDecoder =
     andThen svgDecoderM (field "svgBase64" string)
 
 
-svgDecoderM : String -> Decoder (Svg msg)
+svgDecoderM : String -> Decoder SvgNode
 svgDecoderM s =
     let
         svgRes =
@@ -165,7 +232,7 @@ svgStringToBase64 inSvg =
     Base64.encode svg
 
 
-stringToSvg : String -> Result String (Svg msg)
+stringToSvg : String -> Result String SvgNode
 stringToSvg base64 =
     let
         decoded =
@@ -173,7 +240,7 @@ stringToSvg base64 =
     in
     case decoded of
         Ok s ->
-            parse s
+            parseToNode s
 
         Err err ->
             Err ("Base 64 decode error " ++ err)

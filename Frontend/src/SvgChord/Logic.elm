@@ -3,6 +3,10 @@ module SvgChord.Logic exposing (getFretsPos, initSvgModel, modelClicked, nameHei
 import SvgChord.Types exposing (..)
 
 
+maxNameLength =
+    13
+
+
 modelClicked : Pos -> SvgModel -> SvgModel
 modelClicked pos model =
     let
@@ -17,7 +21,7 @@ modelClicked pos model =
 
 setName : String -> SvgModel -> SvgModel
 setName name model =
-    { model | name = name }
+    { model | name = String.left maxNameLength name }
 
 
 nameHeight : Float
@@ -90,16 +94,25 @@ createDefaultImgInfo =
         fretboardWidth =
             stringSpace * (numStrings - 1)
 
+        radius =
+            18
+
+        xOffset =
+            radius
+
+        yOffset =
+            radius * 3
+
         imgHeight =
-            400
+            fretSpace * numFrets + yOffset * 2
 
         imgWidth =
-            400
+            radius * 2 * numStrings + xOffset * 2
     in
-    { x = 60
-    , y = 60
+    { x = xOffset
+    , y = yOffset
     , lineWidth = 4
-    , diameter = 9
+    , radius = radius
     , width = fretboardWidth
     , height = fretboardHeight
     , stringSpace = stringSpace

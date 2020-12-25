@@ -8,8 +8,8 @@ import Element.Input as Input
 import Element.Region as Region
 
 
-header : Element msg
-header =
+header : String -> Element msg
+header title =
     el
         [ Region.heading 1
         , centerX
@@ -17,7 +17,7 @@ header =
         , Font.size 36
         , padding 20
         ]
-        (text "Chord charts")
+        (text title)
 
 
 spacerLine : Element msg

@@ -90,15 +90,11 @@ renderFretting info ( fret, pos ) =
             renderMute info pos
 
         Fret fn ->
-            renderPlay pos info.diameter
+            renderPlay pos info.radius
 
 
 renderPlay : Pos -> Float -> List (Svg msg)
-renderPlay pos dia =
-    let
-        radius =
-            dia * 2
-    in
+renderPlay pos radius =
     [ circle
         [ cx (String.fromFloat pos.x)
         , cy (String.fromFloat pos.y)
@@ -115,12 +111,12 @@ renderOpen info pos =
             circle
                 [ cx (String.fromFloat pos.x)
                 , cy (String.fromFloat pos.y)
-                , r (String.fromFloat (info.diameter * 2 - info.lineWidth / 2))
+                , r (String.fromFloat (info.radius - info.lineWidth / 2))
                 , fill "white"
                 ]
                 []
     in
-    renderPlay pos info.diameter ++ [ inner ]
+    renderPlay pos info.radius ++ [ inner ]
 
 
 renderMute : ImgInfo -> Pos -> List (Svg msg)
@@ -144,7 +140,7 @@ renderXRightLeft : ImgInfo -> Float -> Float -> Svg msg
 renderXRightLeft info x y =
     let
         radius =
-            info.diameter * 2
+            info.radius
 
         x1V =
             x + radius * cos (degrees -45)
@@ -172,7 +168,7 @@ renderXLeftRight : ImgInfo -> Float -> Float -> Svg msg
 renderXLeftRight info x y =
     let
         radius =
-            info.diameter * 2
+            info.radius
 
         x1V =
             x + radius * cos (degrees 45)
