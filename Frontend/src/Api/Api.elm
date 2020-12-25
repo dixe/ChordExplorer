@@ -130,7 +130,7 @@ svgDecoderM s =
             succeed res
 
         Err err ->
-            fail err
+            fail ("SvgDecode error " ++ err)
 
 
 uploadIdDecoder : Decoder UploadId
@@ -156,15 +156,24 @@ encodeUploadChord chord =
 
 
 svgStringToBase64 : String -> String
-svgStringToBase64 svg =
+svgStringToBase64 inSvg =
+    let
+        svg =
+            -- Svg.String does uses ' and not ", that breaks the Svg.Parser
+            String.replace "'" "\"" inSvg
+    in
     Base64.encode svg
 
 
 stringToSvg : String -> Result String (Svg msg)
 stringToSvg base64 =
-    case Base64.decode base64 of
+    let
+        decoded =
+            Base64.decode base64
+    in
+    case decoded of
         Ok s ->
             parse s
 
         Err err ->
-            Err err
+            Err ("Base 64 decode error " ++ err)
