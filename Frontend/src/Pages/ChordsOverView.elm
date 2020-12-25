@@ -1,4 +1,4 @@
-module Pages.ChordsOverview exposing (Model, Msg, initModel, initMsg, page, update)
+module Pages.ChordsOverview exposing (Chord, Model, Msg, initModel, initMsg, page, update)
 
 import Api.Api exposing (ApiChord(..), loadChords)
 import Element exposing (..)
@@ -19,12 +19,14 @@ type alias Model =
 
 
 type alias Chord =
-    { id : Int, name : String, svg : Svg Msg, tags : List String, svgHeight : Int, svgWidth : Int }
+    { id : Int, name : String, svg : Svg Msg, tags : List String, svgHeight : Int, svgWidth : Int, selected : Bool }
 
 
 type Msg
     = LoadChords
     | ChordsLoaded (Result String (List (ApiChord Msg)))
+    | SelectChord Int
+    | StartPlayAlong (List Chord)
 
 
 initMsg : Cmd Msg
@@ -64,6 +66,35 @@ update msg model =
                 Err errMsg ->
                     ( Err errMsg, Cmd.none )
 
+        SelectChord id ->
+            case model of
+                Err e ->
+                    ( Err e, Cmd.none )
+
+                Ok chords ->
+                    ( Ok (updateSelected id chords), Cmd.none )
+
+        StartPlayAlong chords ->
+            ( model, Cmd.none )
+
+
+updateSelected : Int -> List Chord -> List Chord
+updateSelected id chords =
+    case chords of
+        [] ->
+            []
+
+        c :: cs ->
+            let
+                updated =
+                    if c.id == id then
+                        { c | selected = not c.selected }
+
+                    else
+                        c
+            in
+            updated :: updateSelected id cs
+
 
 mapChords : List (ApiChord Msg) -> List Chord
 mapChords apiChords =
@@ -78,6 +109,7 @@ mapChord (ApiChord chord) =
     , tags = chord.tags
     , svgHeight = round chord.svg.height
     , svgWidth = round chord.svg.width
+    , selected = False
     }
 
 
@@ -89,10 +121,41 @@ viewModel : Model -> Element Msg
 viewModel model =
     case model of
         Ok chords ->
-            viewChords chords
+            column [ padding 10 ]
+                [ viewPlayAlong chords
+                , viewChords chords
+                ]
 
         Err msg ->
             text msg
+
+
+viewPlayAlong : List Chord -> Element Msg
+viewPlayAlong chords =
+    let
+        selectedIds =
+            List.map (\c -> c.id) <| List.filter (\c -> c.selected) chords
+    in
+    case selectedIds of
+        [] ->
+            Element.none
+
+        ids ->
+            let
+                qString =
+                    String.join "," <|
+                        List.map String.fromInt ids
+
+                url =
+                    "/playAlong" ++ "?ids=" ++ qString
+            in
+            Element.link
+                [ Background.color LH.green
+                , padding 5
+                , Font.size 30
+                , Border.rounded 10
+                ]
+                { label = text "Start PlayAlong", url = url }
 
 
 viewChords : List Chord -> Element Msg
@@ -115,7 +178,27 @@ viewChord c =
         [ viewSvg c.svgHeight c.svg
         , viewName c.name
         , viewTags viewWidth c.tags
+        , viewSelect c.id c.selected
         ]
+
+
+viewSelect : Int -> Bool -> Element Msg
+viewSelect id selected =
+    let
+        color =
+            if selected then
+                LH.blue
+
+            else
+                LH.gray
+
+        attribs =
+            [ centerX, Background.color color, padding 3 ]
+    in
+    Element.Input.button attribs
+        { onPress = Just (SelectChord id)
+        , label = text "PlayAlong"
+        }
 
 
 viewSvg : Int -> Svg Msg -> Element Msg
