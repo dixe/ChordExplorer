@@ -31,7 +31,7 @@ type Msg
 
 initMsg : Cmd Msg
 initMsg =
-    loadChords ChordsLoaded
+    loadChords [] ChordsLoaded
 
 
 initModel : Model
@@ -56,7 +56,7 @@ update : Msg -> Model -> ( Model, Cmd Msg )
 update msg model =
     case msg of
         LoadChords ->
-            ( model, loadChords ChordsLoaded )
+            ( model, loadChords [] ChordsLoaded )
 
         ChordsLoaded res ->
             case res of
@@ -143,7 +143,7 @@ viewPlayAlong chords =
         ids ->
             let
                 qString =
-                    String.join "," <|
+                    String.join "&ids=" <|
                         List.map String.fromInt ids
 
                 url =

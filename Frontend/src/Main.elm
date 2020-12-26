@@ -15,7 +15,7 @@ main =
         { init = init
         , update = Routing.update
         , view = Routing.view
-        , subscriptions = subscriptions
+        , subscriptions = Routing.subscriptions
         , onUrlChange = Routing.onUrlChange
         , onUrlRequest = Routing.onUrlRequest
         }
@@ -24,8 +24,3 @@ main =
 init : () -> Url -> Nav.Key -> ( Routing.Model, Cmd Routing.Msg )
 init _ url key =
     Routing.init url key
-
-
-subscriptions : model -> Sub msg
-subscriptions _ =
-    Sub.none

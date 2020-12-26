@@ -27,10 +27,20 @@ type alias UploadId =
     { id : Int }
 
 
-loadChords : (Result String (List (ApiChord msg)) -> msg) -> Cmd msg
-loadChords toMsg =
+loadChords : List Int -> (Result String (List (ApiChord msg)) -> msg) -> Cmd msg
+loadChords ids toMsg =
+    let
+        queryString =
+            String.join "," (List.map String.fromInt ids)
+
+        url =
+            "http://localhost:3000/chords?ids=" ++ queryString
+
+        d =
+            Debug.log "ApiRquest: " ( url, toMsg )
+    in
     Http.get
-        { url = "http://localhost:3000/chords"
+        { url = url
         , expect = Http.expectString (fromResult toMsg chordsDecoder)
         }
 
@@ -69,6 +79,10 @@ httpErrorToString err =
 
 fromResult : (Result String a -> msg) -> Decoder a -> Result Http.Error String -> msg
 fromResult toMsg decoder result =
+    let
+        d =
+            Debug.log "fromResult: " result
+    in
     case result of
         Ok allText ->
             toMsg (decode decoder allText)

@@ -1,4 +1,4 @@
-module Routing exposing (Model, Msg, init, onUrlChange, onUrlRequest, update, view)
+module Routing exposing (Model, Msg, init, onUrlChange, onUrlRequest, subscriptions, update, view)
 
 import Browser
 import Browser.Navigation as Nav
@@ -48,6 +48,7 @@ type alias Page =
     , model : PageModel
     , parseMsg : Msg -> InnerModel -> ( InnerModel, Cmd Msg )
     , initMsg : Cmd Msg
+    , getSubscriptions : InnerModel -> Sub Msg
     }
 
 
@@ -79,6 +80,7 @@ routeToPage r =
             , model = WithContext (initialzieIsPlayModel (stripMaybe ids))
             , parseMsg = parseMsgPlayAlong
             , initMsg = playAlongInitMsg
+            , getSubscriptions = playAlongSubScriptions
             }
 
         ChordsOverview ->
@@ -88,6 +90,7 @@ routeToPage r =
             , model = NoContext (ChordsOverview_Model ChordsOverview.initModel)
             , parseMsg = parseMsgOverview
             , initMsg = chordsOverviewInitMsg
+            , getSubscriptions = \_ -> Sub.none
             }
 
         CreateChord ->
@@ -97,6 +100,7 @@ routeToPage r =
             , model = NoContext (CreateChord_Model CreateChord.initModel)
             , parseMsg = parseMsgCreateChord
             , initMsg = Cmd.none
+            , getSubscriptions = \_ -> Sub.none
             }
 
 
@@ -124,6 +128,16 @@ idsParser =
 -- PLAYALONG
 
 
+playAlongSubScriptions : InnerModel -> Sub Msg
+playAlongSubScriptions model =
+    case model of
+        PlayAlong_Model m ->
+            Sub.map PlayAlong_Msg (PlayAlong.subscriptions m)
+
+        _ ->
+            Sub.none
+
+
 playAlongInitMsg : Cmd Msg
 playAlongInitMsg =
     Cmd.map PlayAlong_Msg PlayAlong.initMsg
@@ -145,7 +159,7 @@ initialzieIsPlayModel ids model =
                 _ ->
                     []
     in
-    PlayAlong_Model (PlayAlong.initModel chords)
+    PlayAlong_Model (PlayAlong.initModel ids chords)
 
 
 mapChord : ChordsOverview.Chord -> PlayAlong.Chord ChordsOverview.Msg
@@ -299,6 +313,10 @@ pageToHtml model r =
 
 update : Msg -> Model -> ( Model, Cmd Msg )
 update msg model =
+    let
+        d =
+            Debug.log "Routing Update :" ( msg, model )
+    in
     case msg of
         LinkClicked urlRequest ->
             case urlRequest of
@@ -324,6 +342,20 @@ update msg model =
                     ( model, Cmd.none )
 
 
+
+-- SUBSCRIPTIONS
+
+
+subscriptions : Model -> Sub Msg
+subscriptions model =
+    case model.page of
+        Just p ->
+            p.getSubscriptions model.inner
+
+        Nothing ->
+            Sub.none
+
+
 init : Url -> Nav.Key -> ( Model, Cmd Msg )
 init url key =
     routing url { key = key, page = Nothing, inner = NotFound }
@@ -332,14 +364,18 @@ init url key =
 routing : Url -> Model -> ( Model, Cmd Msg )
 routing url model =
     let
-        parsed =
+        route : Maybe Route
+        route =
             Url.Parser.parse routeParser url
 
         page =
-            Maybe.map routeToPage parsed
+            Maybe.map routeToPage route
 
         d =
-            Debug.log "Url parsed " parsed
+            Debug.log "Url " url
+
+        d1 =
+            Debug.log "route:  " route
     in
     case page of
         Nothing ->
