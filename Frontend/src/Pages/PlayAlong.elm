@@ -7,6 +7,9 @@ import Element.Border as Border
 import Element.Events exposing (..)
 import Element.Font as Font
 import Element.Input as Input
+import FontAwesome.Icon as Icon
+import FontAwesome.Solid as IconSolid
+import FontAwesome.Styles
 import Layout.Helper as LH exposing (..)
 import Svg exposing (Svg)
 import Task
@@ -97,16 +100,15 @@ page model =
         body =
             case model of
                 PlayAlong p ->
-                    column []
-                        [ viewChords p
-                        , viewControls p
-                        ]
+                    viewPlayAlong p
 
                 _ ->
                     Element.none
     in
     column [ width fill, padding 10 ]
-        [ LH.header "Play along"
+        [ --Font awesome style
+          Element.html FontAwesome.Styles.css
+        , LH.header "Play along"
         , LH.spacerLine
         , body
         ]
@@ -239,58 +241,12 @@ subscriptions model =
 -- VIEW
 
 
-viewControls : PlayInfo -> Element Msg
-viewControls info =
-    let
-        startStop =
-            case info.state of
-                Playing ->
-                    stopControl info
-
-                Stopped ->
-                    startControl info
-    in
-    Element.row [ padding 10, spacing 10 ] [ startStop, tempoControl info ]
-
-
-stopControl : PlayInfo -> Element Msg
-stopControl info =
-    Input.button [ Background.color stopColor ] { label = text "Stop", onPress = Just Stop }
-
-
-startControl : PlayInfo -> Element Msg
-startControl info =
-    Input.button [ Background.color startColor ] { label = text "Start", onPress = Just Start }
-
-
-tempoControl : PlayInfo -> Element Msg
-tempoControl info =
-    Input.slider
-        [ Element.height (Element.px 30)
-
-        -- Here is where we're creating/styling the "track"
-        , Element.behindContent
-            (Element.el
-                [ Element.width Element.fill
-                , Element.height (Element.px 2)
-                , Element.centerY
-                , Background.color LH.gray
-                , Border.rounded 2
-                ]
-                Element.none
-            )
+viewPlayAlong : PlayInfo -> Element Msg
+viewPlayAlong info =
+    column []
+        [ viewChords info
+        , viewControls info
         ]
-        { onChange = round >> UpdateBpm
-        , label =
-            Input.labelAbove []
-                (text ("Bpm: " ++ String.fromInt info.bpm))
-        , min = 60
-        , max = 200
-        , step = Just 1
-        , value = toFloat info.bpm
-        , thumb =
-            Input.defaultThumb
-        }
 
 
 viewChords : PlayInfo -> Element Msg
@@ -324,6 +280,69 @@ viewChord color c =
         ]
 
 
+viewControls : PlayInfo -> Element Msg
+viewControls info =
+    let
+        startStop =
+            startStopControl info
+    in
+    Element.row [ centerX, padding 10, spacing 10 ] [ startStop, tempoControl info ]
+
+
+startStopControl : PlayInfo -> Element Msg
+startStopControl info =
+    case info.state of
+        Playing ->
+            controlButton IconSolid.stop Stop
+
+        Stopped ->
+            controlButton IconSolid.play Start
+
+
+controlButton : Icon.Icon -> Msg -> Element Msg
+controlButton icon msg =
+    let
+        iconElm =
+            Element.html (Icon.viewIcon icon)
+    in
+    Input.button (controlButtonAttribs ++ [ Background.color startTopBackground ]) { label = iconElm, onPress = Just msg }
+
+
+tempoControl : PlayInfo -> Element Msg
+tempoControl info =
+    Input.slider
+        [ Element.height (Element.px 30)
+
+        -- Here is where we're creating/styling the "track"
+        , Element.behindContent
+            (Element.el
+                [ Element.width Element.fill
+                , Element.height (Element.px 2)
+                , Element.centerY
+                , Background.color LH.gray
+                , Border.rounded 2
+                ]
+                Element.none
+            )
+        ]
+        { onChange = round >> UpdateBpm
+        , label =
+            Input.labelAbove []
+                (text ("Bpm: " ++ String.fromInt info.bpm))
+        , min = 60
+        , max = 200
+        , step = Just 1
+        , value = toFloat info.bpm
+        , thumb =
+            Input.defaultThumb
+        }
+
+
+controlButtonAttribs : List (Attribute Msg)
+controlButtonAttribs =
+    [ Font.size 35, padding 5, spacing 5, Border.rounded 10 ]
+
+
 viewName : String -> Element Msg
 viewName name =
     el [ Font.bold, paddingXY 30 5 ] (text name)
@@ -339,11 +358,6 @@ playColor =
     Element.rgb255 10 100 240
 
 
-startColor : Color
-startColor =
-    Element.rgb255 100 250 140
-
-
-stopColor : Color
-stopColor =
-    Element.rgb255 255 10 10
+startTopBackground : Color
+startTopBackground =
+    Element.rgb255 200 200 200

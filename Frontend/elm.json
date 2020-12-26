@@ -18,6 +18,7 @@
             "elm/svg": "1.0.1",
             "elm/time": "1.0.0",
             "elm/url": "1.0.0",
+            "lattyware/elm-fontawesome": "5.0.0",
             "mdgriffith/elm-ui": "1.1.8",
             "truqu/elm-base64": "2.0.4"
         },
