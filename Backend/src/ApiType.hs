@@ -17,7 +17,7 @@ import GHC.Generics
 
 
 type ChordApi =
-  "chords" :> Get '[JSON] [Chord]
+  "chords" :> QueryParam  "ids" String :> Get '[JSON] [Chord]
   :<|> "chords" :> Capture "chordId" Int64 :> Get '[JSON] Chord
   :<|> "chords" :> ReqBody '[JSON] UploadChord :> Post '[JSON] Id
 

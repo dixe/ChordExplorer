@@ -42,6 +42,7 @@ dependencies:
 - esqueleto
 - wai-cors
 - wai-logger
+- split
 
 
 library:

@@ -18,7 +18,7 @@ import Database.Persist (selectList, Entity, getBy, insert, selectList, entityVa
 import Database.Persist.Postgresql (ConnectionString, withPostgresqlConn, runMigration, SqlPersistT, fromSqlKey, toSqlKey)
 import Data.Int (Int64)
 import Data.Text (pack, unpack)
-import Database.Esqueleto (select, from, where_, (^.), val, (==.), on, InnerJoin(..))
+import Database.Esqueleto (select, from, where_, (^.), val, (==.), on, InnerJoin(..), in_, valList)
 import Data.Maybe (listToMaybe)
 
 import Schema
@@ -72,13 +72,26 @@ fetchTagsForChord cid =  runAction localConnString selectAction
                        return tags)
 
 
-fetchChordsDB' :: IO [Entity DbChord]
-fetchChordsDB' = runAction localConnString (selectList [] [])
+fetchChordsDB' :: [Int64] -> IO [Entity DbChord]
+fetchChordsDB' ids =
+  runAction localConnString (query ids)
+  where
+    query :: [Int64] -> SqlPersistT (LoggingT IO) [Entity DbChord]
+    query [] = selectList [] []
+    query ids = select .from $ \ dbChords -> do
+      where_ (dbChords  ^. DbChordId `in_` valList (map toSqlKey ids) )
+      return dbChords
 
-fetchChordsDB :: IO [Chord]
-fetchChordsDB = do
-  chords <- liftIO $ fetchChordsDB'
+
+
+
+
+
+fetchChordsDB :: [Int64] -> IO [Chord]
+fetchChordsDB ids = do
+  chords <- liftIO $ fetchChordsDB' ids
   fillChordsWthTags chords (map fromDBChordEntity chords)
+
 
 
 -- TODO convert to single call that joins with chordId and get all rows at the same time, then add tags to chords from rows

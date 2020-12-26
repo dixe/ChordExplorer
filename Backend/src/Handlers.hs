@@ -11,6 +11,11 @@ import Control.Monad.Trans.Except (throwE)
 
 import Data.Int (Int64)
 import Data.ByteString.Lazy.Char8 (pack)
+import Data.List.Split
+
+import Data.Maybe (catMaybes)
+
+import Text.Read
 
 import Servant
 import ApiType
@@ -26,11 +31,30 @@ fetchChordHandler cid = do
     Nothing -> Handler $ (throwE $ err401 { errBody = pack ("Could not find chord with ID: " ++ (show cid))})
 
 
-fetchChordsHandler :: Handler [Chord]
-fetchChordsHandler = do
-  liftIO $ putStrLn "chords"
-  chords <- liftIO $ fetchChordsDB
-  return chords
+fetchChordsHandler :: Maybe String -> Handler [Chord]
+fetchChordsHandler queryIds =
+
+  let
+    ids = parseIds queryIds
+  in
+    do
+      liftIO $ putStrLn "chords"
+      chords <- liftIO $ fetchChordsDB ids
+      return chords
+
+
+parseIds :: Maybe String -> [Int64]
+parseIds Nothing = []
+parseIds (Just s) =
+  let
+    splitted = splitOn "," s
+    mapped = map readMaybe splitted
+  in
+    catMaybes mapped
+
+
+
+
 
 
 createChordHandler :: UploadChord -> Handler Id

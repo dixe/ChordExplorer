@@ -4,7 +4,7 @@ cabal-version: 1.12
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: e6f4559049e7025909b85b62c49cca084c68a9032c32b9eb66d9c8068647b1d8
+-- hash: e04f84a21b2fed7c491023d4c295fa5761a9863f3bda4b4c9ca25fd1e94ff8fe
 
 name:           Backend
 version:        0.1.0.0
@@ -52,6 +52,7 @@ library
     , persistent-template
     , servant
     , servant-server
+    , split
     , string-conversions
     , text
     , transformers
@@ -85,6 +86,7 @@ executable Backend-exe
     , persistent-template
     , servant
     , servant-server
+    , split
     , string-conversions
     , text
     , transformers
@@ -119,6 +121,7 @@ test-suite Backend-test
     , persistent-template
     , servant
     , servant-server
+    , split
     , string-conversions
     , text
     , transformers
