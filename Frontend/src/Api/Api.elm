@@ -35,9 +35,6 @@ loadChords ids toMsg =
 
         url =
             "http://localhost:3000/chords?ids=" ++ queryString
-
-        d =
-            Debug.log "ApiRquest: " ( url, toMsg )
     in
     Http.get
         { url = url
@@ -79,10 +76,6 @@ httpErrorToString err =
 
 fromResult : (Result String a -> msg) -> Decoder a -> Result Http.Error String -> msg
 fromResult toMsg decoder result =
-    let
-        d =
-            Debug.log "fromResult: " result
-    in
     case result of
         Ok allText ->
             toMsg (decode decoder allText)

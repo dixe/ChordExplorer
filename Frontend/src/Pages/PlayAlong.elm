@@ -1,6 +1,7 @@
-module Pages.PlayAlong exposing (Chord, Model, Msg, initModel, initMsg, page, subscriptions, update)
+module Pages.PlayAlong exposing (ChordBase, Model, Msg, initModel, initMsg, page, subscriptions, toChord, update)
 
 import Api.Api exposing (ApiChord(..), loadChords)
+import Dict exposing (Dict)
 import Element exposing (..)
 import Element.Background as Background
 import Element.Border as Border
@@ -12,6 +13,7 @@ import FontAwesome.Solid as IconSolid
 import FontAwesome.Styles
 import Layout.Helper as LH exposing (..)
 import Svg exposing (Svg)
+import SvgStrumming.SvgStrumming as Strumming
 import Task
 import Time
 
@@ -37,7 +39,7 @@ type alias PlayInfo =
     , after : List (Chord Msg)
     , state : State
     , bpm : Int
-    , barLength : Int
+    , strumming : Strumming.Model
     }
 
 
@@ -46,8 +48,27 @@ type State
     | Stopped
 
 
+type alias ChordBase msg =
+    { id : Int
+    , name : String
+    , svg : Svg msg
+    , svgHeight : Int
+    , svgWidth : Int
+    }
+
+
 type alias Chord msg =
-    { id : Int, name : String, svg : Svg msg, svgHeight : Int, svgWidth : Int }
+    { id : Int
+    , name : String
+    , svg : Svg msg
+    , svgHeight : Int
+    , svgWidth : Int
+    }
+
+
+toChord : ChordBase msg -> Chord msg
+toChord base =
+    { id = base.id, name = base.name, svg = base.svg, svgHeight = base.svgHeight, svgWidth = base.svgWidth }
 
 
 initModel : List Int -> List (Chord a) -> Model
@@ -57,7 +78,23 @@ initModel ids chords =
             UnInitialized ids
 
         c :: cs ->
-            PlayAlong { current = mapChordMsg c, before = [], after = List.map mapChordMsg cs, state = Playing, bpm = defaultBpm, barLength = defaultBarLength }
+            PlayAlong (newPlayAlong (mapChordMsg c) (List.map mapChordMsg cs))
+
+
+newPlayAlong : Chord Msg -> List (Chord Msg) -> PlayInfo
+newPlayAlong current rest =
+    { current = current
+    , before = []
+    , after = rest
+    , state = defaultState
+    , bpm = defaultBpm
+    , strumming = Strumming.initModel
+    }
+
+
+defaultState : State
+defaultState =
+    Stopped
 
 
 defaultBarLength : Int
@@ -150,11 +187,7 @@ update msg model =
             ( mapChords apiChords, Cmd.none )
 
         Tick ->
-            let
-                d =
-                    Debug.log "Tick" 2
-            in
-            ( mapPlayInfo setNextChord model, Cmd.none )
+            ( mapPlayInfo updateBeat model, Cmd.none )
 
         UpdateBpm bpm ->
             ( mapPlayInfo (\info -> { info | bpm = bpm }) model, Cmd.none )
@@ -176,7 +209,7 @@ mapChords res =
                     LoadError "No chords loaded"
 
                 c :: cs ->
-                    PlayAlong { before = [], current = c, after = cs, state = Stopped, bpm = defaultBpm, barLength = defaultBarLength }
+                    PlayAlong (newPlayAlong (mapChordMsg c) (List.map mapChordMsg cs))
 
 
 mapChord : ApiChord Msg -> Chord Msg
@@ -184,8 +217,13 @@ mapChord (ApiChord c) =
     { id = c.id, name = c.name, svg = c.svg.svg, svgHeight = round c.svg.height, svgWidth = round c.svg.width }
 
 
-setNextChord : PlayInfo -> PlayInfo
-setNextChord ({ before, current, after } as info) =
+updateBeat : PlayInfo -> PlayInfo
+updateBeat info =
+    nextChord info
+
+
+nextChord : PlayInfo -> PlayInfo
+nextChord ({ before, current, after } as info) =
     case after of
         next :: rest ->
             let
@@ -246,6 +284,7 @@ viewPlayAlong info =
     column []
         [ viewChords info
         , viewControls info
+        , Strumming.view [ centerX ] info.strumming
         ]
 
 
@@ -253,19 +292,19 @@ viewChords : PlayInfo -> Element Msg
 viewChords info =
     let
         before =
-            List.map (viewChord LH.white) info.before
+            List.map (viewChord []) info.before
 
         current =
-            viewChord playColor info.current
+            viewChord currentAttribs info.current
 
         after =
-            List.map (viewChord LH.white) info.after
+            List.map (viewChord []) info.after
     in
     wrappedRow [ spacing 10, padding 10 ] (before ++ [ current ] ++ after)
 
 
-viewChord : Color -> Chord Msg -> Element Msg
-viewChord color c =
+viewChord : List (Element.Attribute Msg) -> Chord Msg -> Element Msg
+viewChord attribs c =
     let
         viewHeight =
             c.svgHeight
@@ -275,7 +314,9 @@ viewChord color c =
     in
     --TODO maybe set height and width, so all elements will be the same
     column
-        [ Border.solid, Border.width 1, Border.rounded 40, padding 2, Background.color color ]
+        ([ Border.solid, Border.width 2, Border.rounded 40, padding 2 ]
+            ++ attribs
+        )
         [ viewSvg c.svgHeight c.svg
         ]
 
@@ -340,7 +381,7 @@ tempoControl info =
 
 controlButtonAttribs : List (Attribute Msg)
 controlButtonAttribs =
-    [ Font.size 35, padding 5, spacing 5, Border.rounded 10 ]
+    [ Font.size 30, padding 10, Border.rounded 100 ]
 
 
 viewName : String -> Element Msg
@@ -351,6 +392,13 @@ viewName name =
 viewSvg : Int -> Svg Msg -> Element Msg
 viewSvg minHeight svg =
     el [ height (fill |> minimum minHeight) ] (html svg)
+
+
+currentAttribs : List (Element.Attribute Msg)
+currentAttribs =
+    [ Border.color playColor
+    , Border.glow playColor 10
+    ]
 
 
 playColor : Color

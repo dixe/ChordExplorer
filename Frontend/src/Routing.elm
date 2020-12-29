@@ -159,10 +159,10 @@ initialzieIsPlayModel ids model =
                 _ ->
                     []
     in
-    PlayAlong_Model (PlayAlong.initModel ids chords)
+    PlayAlong_Model (PlayAlong.initModel ids (List.map PlayAlong.toChord chords))
 
 
-mapChord : ChordsOverview.Chord -> PlayAlong.Chord ChordsOverview.Msg
+mapChord : ChordsOverview.Chord -> PlayAlong.ChordBase ChordsOverview.Msg
 mapChord chord =
     { id = chord.id, name = chord.name, svg = chord.svg, svgHeight = chord.svgHeight, svgWidth = chord.svgWidth }
 
@@ -313,10 +313,6 @@ pageToHtml model r =
 
 update : Msg -> Model -> ( Model, Cmd Msg )
 update msg model =
-    let
-        d =
-            Debug.log "Routing Update :" ( msg, model )
-    in
     case msg of
         LinkClicked urlRequest ->
             case urlRequest of
