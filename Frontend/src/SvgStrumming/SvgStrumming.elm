@@ -38,7 +38,6 @@ type alias Pattern =
     { before : List Note
     , current : Note
     , after : List Note
-    , bars : Int
     , timeSignature : TimeSignature
     }
 
@@ -59,10 +58,24 @@ initModel =
 
 
 getTotalBeats : Pattern -> Int
-getTotalBeats { bars, timeSignature } =
-    case timeSignature of
-        ( top, bot ) ->
-            bars * top
+getTotalBeats { timeSignature, before, after, current } =
+    let
+        partial =
+            getNoteDuration timeSignature
+
+        allNotes =
+            before ++ [ current ] ++ after
+
+        total =
+            round <| List.sum <| List.map partial allNotes
+
+        beatsPrBar =
+            Tuple.first timeSignature
+
+        rem =
+            remainderBy beatsPrBar total
+    in
+    total + beatsPrBar - rem
 
 
 createDefaultImgInfo : Pattern -> ImgInfo
@@ -93,10 +106,9 @@ createDefaultImgInfo pattern =
 
 defaultPattern : Pattern
 defaultPattern =
-    { before = [ Note Whole, Note Half ]
+    { before = [ Note Whole, Note Whole, Note Half, Note Half ]
     , current = Note Whole
-    , after = [ Note Quater, Note Quater, Note Quater ]
-    , bars = 4
+    , after = [ Note Quater, Note Quater, Note Half, Note Quater ]
     , timeSignature = ( 4, 4 )
     }
 
@@ -133,6 +145,7 @@ renderPattern ({ info, pattern } as model) =
         , viewBox ("0 0 " ++ String.fromFloat info.imgWidth ++ " " ++ String.fromFloat info.imgHeight)
         ]
         (renderTimeSignature pattern.timeSignature
+            ++ renderBarLines info pattern
             ++ renderMiddleLine info
             ++ renderNotes model
         )
@@ -159,6 +172,34 @@ renderTimeSignature ( top, bot ) =
     ]
 
 
+renderBarLines : ImgInfo -> Pattern -> List (Svg msg)
+renderBarLines info pattern =
+    let
+        line : Float -> Svg msg
+        line xStart =
+            Svg.rect
+                [ width (String.fromFloat info.lineWidth)
+                , height (String.fromFloat info.imgHeight)
+                , x (String.fromFloat (xStart - info.noteWidth))
+                ]
+                []
+
+        totalLines =
+            getTotalBeats pattern // Tuple.first pattern.timeSignature
+
+        linesStart =
+            List.map (\x -> info.xStart + toFloat x * 4 * 2 * info.noteWidth) <|
+                List.range 0 totalLines
+
+        d =
+            Debug.log "Total Beats" (getTotalBeats pattern)
+
+        d2 =
+            Debug.log "Starts " linesStart
+    in
+    List.map line linesStart
+
+
 renderMiddleLine : ImgInfo -> List (Svg msg)
 renderMiddleLine info =
     [ Svg.rect
@@ -175,21 +216,42 @@ renderNotes : Model -> List (Svg msg)
 renderNotes { info, pattern } =
     let
         -- get a list of all note to be shown, and map then with an X-position
-        allNotes =
-            pattern.before ++ [ pattern.current ] ++ pattern.after
-
         pos : Pos
         pos =
-            { x = 50, y = info.imgHeight / 2 + (info.lineWidth / 2) }
+            { x = 0, y = info.imgHeight / 2 + (info.lineWidth / 2) }
+
+        setPos =
+            List.map (\( note, ( xS, end ) ) -> ( note, { pos | x = xS } ))
+
+        start =
+            getStart info info.xStart
+
+        before =
+            mapNoteStartX info pattern.timeSignature pattern.before (start [])
+
+        current =
+            mapNoteStartX info pattern.timeSignature [ pattern.current ] (start before)
+
+        after =
+            mapNoteStartX info pattern.timeSignature pattern.after (start current)
 
         notesWithStart =
-            List.map (\( note, x ) -> ( note, { pos | x = x } ))
-                (mapNoteStartX info pattern.timeSignature allNotes info.xStart)
+            setPos (before ++ current ++ after)
 
         d =
             Debug.log "NotesWithStart" notesWithStart
     in
     flatMap (renderNote info) notesWithStart
+
+
+getStart : ImgInfo -> Float -> List ( Note, ( Float, Float ) ) -> Float
+getStart info default notes =
+    case List.head <| List.reverse notes of
+        Nothing ->
+            default
+
+        Just ( _, ( _, end ) ) ->
+            end
 
 
 renderNote : ImgInfo -> ( Note, Pos ) -> List (Svg msg)
@@ -210,7 +272,7 @@ renderNote info ( note, pos ) =
             []
 
 
-mapNoteStartX : ImgInfo -> TimeSignature -> List Note -> Float -> List ( Note, Float )
+mapNoteStartX : ImgInfo -> TimeSignature -> List Note -> Float -> List ( Note, ( Float, Float ) )
 mapNoteStartX info timeSig notes current =
     case notes of
         [] ->
@@ -223,7 +285,7 @@ mapNoteStartX info timeSig notes current =
                         * 2
                         * getNoteDuration timeSig n
             in
-            ( n, current ) :: mapNoteStartX info timeSig ns (current + dur)
+            ( n, ( current, current + dur ) ) :: mapNoteStartX info timeSig ns (current + dur)
 
 
 getNoteDuration : TimeSignature -> Note -> Float
