@@ -1,4 +1,4 @@
-module SvgStrumming.SvgStrumming exposing (Model, initModel, nextNote, view)
+module SvgStrumming.SvgStrumming exposing (Model, initModel, nextNote, tickTime, updateBpm, view)
 
 import Element exposing (Element, column, html, text)
 import Element.Input exposing (button)
@@ -6,8 +6,6 @@ import Json.Decode exposing (..)
 import Svg exposing (Attribute, Svg, circle, node, rect, svg)
 import Svg.Attributes as SA exposing (..)
 import Svg.Events exposing (..)
-import SvgChord.Logic exposing (..)
-import SvgChord.Types exposing (..)
 
 
 type Note
@@ -19,6 +17,10 @@ type Duration
     = Whole
     | Half
     | Quater
+
+
+type alias Pos =
+    { x : Float, y : Float }
 
 
 type alias ImgInfo =
@@ -39,6 +41,7 @@ type alias Pattern =
     , current : Note
     , after : List Note
     , timeSignature : TimeSignature
+    , bpm : Int
     }
 
 
@@ -55,6 +58,20 @@ initModel =
 
 
 -- LOGIC
+
+
+tickTime : Model -> Float
+tickTime { pattern } =
+    bpmToTick pattern
+
+
+bpmToTick : Pattern -> Float
+bpmToTick { bpm } =
+    let
+        min =
+            toFloat 1000 * 60
+    in
+    min / toFloat bpm
 
 
 getTotalBeats : Pattern -> Int
@@ -110,6 +127,7 @@ defaultPattern =
     , current = Note Whole
     , after = [ Note Quater, Note Quater, Note Half, Note Quater ]
     , timeSignature = ( 4, 4 )
+    , bpm = 70
     }
 
 
@@ -121,6 +139,19 @@ flatMap f l =
 
         n :: ns ->
             f n ++ flatMap f ns
+
+
+
+-- UPDATE
+
+
+updateBpm : Model -> Int -> Model
+updateBpm ({ pattern } as model) bpm =
+    let
+        p =
+            { pattern | bpm = bpm }
+    in
+    { model | pattern = p }
 
 
 nextNote : Model -> Model

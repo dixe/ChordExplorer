@@ -38,7 +38,6 @@ type alias PlayInfo =
     , current : Chord Msg
     , after : List (Chord Msg)
     , state : State
-    , bpm : Int
     , strumming : Strumming.Model
     }
 
@@ -87,7 +86,6 @@ newPlayAlong current rest =
     , before = []
     , after = rest
     , state = defaultState
-    , bpm = defaultBpm
     , strumming = Strumming.initModel
     }
 
@@ -95,16 +93,6 @@ newPlayAlong current rest =
 defaultState : State
 defaultState =
     Stopped
-
-
-defaultBarLength : Int
-defaultBarLength =
-    4
-
-
-defaultBpm : Int
-defaultBpm =
-    70
 
 
 initMsg : Cmd Msg
@@ -190,7 +178,7 @@ update msg model =
             ( mapPlayInfo updateBeat model, Cmd.none )
 
         UpdateBpm bpm ->
-            ( mapPlayInfo (\info -> { info | bpm = bpm }) model, Cmd.none )
+            ( mapPlayInfo (\info -> { info | strumming = Strumming.updateBpm info.strumming bpm }) model, Cmd.none )
 
 
 
@@ -255,25 +243,13 @@ nextChord ({ before, current, after } as info) =
 -- SUBSCRIPTIONS
 
 
-bpmToTick : PlayInfo -> Float
-bpmToTick info =
-    let
-        min =
-            toFloat 1000 * 60
-
-        beat =
-            min / toFloat info.bpm
-    in
-    beat
-
-
 subscriptions : Model -> Sub Msg
 subscriptions model =
     case model of
         PlayAlong info ->
             case info.state of
                 Playing ->
-                    Time.every (bpmToTick info) (\_ -> Tick)
+                    Time.every (Strumming.tickTime info.strumming) (\_ -> Tick)
 
                 Stopped ->
                     Sub.none
@@ -376,11 +352,11 @@ tempoControl info =
         { onChange = round >> UpdateBpm
         , label =
             Input.labelAbove []
-                (text ("Bpm: " ++ String.fromInt info.bpm))
+                (text ("Bpm: " ++ String.fromInt info.strumming.pattern.bpm))
         , min = 60
         , max = 200
         , step = Just 1
-        , value = toFloat info.bpm
+        , value = toFloat info.strumming.pattern.bpm
         , thumb =
             Input.defaultThumb
         }
