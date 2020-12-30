@@ -1,4 +1,4 @@
-module SvgStrumming.SvgStrumming exposing (Model, initModel, view)
+module SvgStrumming.SvgStrumming exposing (Model, initModel, nextNote, view)
 
 import Element exposing (Element, column, html, text)
 import Element.Input exposing (button)
@@ -123,6 +123,26 @@ flatMap f l =
             f n ++ flatMap f ns
 
 
+nextNote : Model -> Model
+nextNote ({ pattern } as model) =
+    { model | pattern = nextNoteM pattern }
+
+
+nextNoteM : Pattern -> Pattern
+nextNoteM ({ before, current, after } as pattern) =
+    case after of
+        a :: afters ->
+            { pattern | before = before ++ [ current ], current = a, after = afters }
+
+        [] ->
+            case before of
+                [] ->
+                    pattern
+
+                b :: bs ->
+                    { pattern | current = b, before = [], after = bs }
+
+
 
 -- VIEW
 
@@ -221,7 +241,10 @@ renderNotes { info, pattern } =
             { x = 0, y = info.imgHeight / 2 + (info.lineWidth / 2) }
 
         setPos =
-            List.map (\( note, ( xS, end ) ) -> ( note, { pos | x = xS } ))
+            List.map (\( note, ( xS, end ) ) -> ( note, False, { pos | x = xS } ))
+
+        setPosCurrent =
+            List.map (\( note, ( xS, end ) ) -> ( note, True, { pos | x = xS } ))
 
         start =
             getStart info info.xStart
@@ -236,7 +259,7 @@ renderNotes { info, pattern } =
             mapNoteStartX info pattern.timeSignature pattern.after (start current)
 
         notesWithStart =
-            setPos (before ++ current ++ after)
+            setPos before ++ setPosCurrent current ++ setPos after
 
         d =
             Debug.log "NotesWithStart" notesWithStart
@@ -254,19 +277,27 @@ getStart info default notes =
             end
 
 
-renderNote : ImgInfo -> ( Note, Pos ) -> List (Svg msg)
-renderNote info ( note, pos ) =
+renderNote : ImgInfo -> ( Note, Bool, Pos ) -> List (Svg msg)
+renderNote info ( note, isCurrent, pos ) =
+    let
+        attribs =
+            if isCurrent then
+                [ SA.fill "blue" ]
+
+            else
+                []
+    in
     case note of
         Note d ->
             case d of
                 Whole ->
-                    renderWhole pos
+                    renderWhole attribs pos
 
                 Half ->
-                    renderHalf info pos
+                    renderHalf attribs info pos
 
                 Quater ->
-                    renderQuater info pos
+                    renderQuater attribs info pos
 
         Rest _ ->
             []
@@ -311,14 +342,16 @@ getDurationLength ( top, bot ) dur =
             toFloat bot / 4
 
 
-renderWhole : Pos -> List (Svg msg)
-renderWhole pos =
+renderWhole : List (Attribute msg) -> Pos -> List (Svg msg)
+renderWhole attribs pos =
     [ Svg.ellipse
-        [ cx (String.fromFloat pos.x)
-        , cy (String.fromFloat pos.y)
-        , ry (String.fromFloat 18)
-        , rx (String.fromFloat 21)
-        ]
+        ([ cx (String.fromFloat pos.x)
+         , cy (String.fromFloat pos.y)
+         , ry (String.fromFloat 18)
+         , rx (String.fromFloat 21)
+         ]
+            ++ attribs
+        )
         []
     , Svg.ellipse
         [ cx (String.fromFloat pos.x)
@@ -331,8 +364,8 @@ renderWhole pos =
     ]
 
 
-renderQuater : ImgInfo -> Pos -> List (Svg msg)
-renderQuater info pos =
+renderQuater : List (Attribute msg) -> ImgInfo -> Pos -> List (Svg msg)
+renderQuater attribs info pos =
     let
         xP =
             pos.x
@@ -340,37 +373,41 @@ renderQuater info pos =
         yP =
             pos.y
     in
-    [ renderStem info { x = xP, y = yP }
+    [ renderStem attribs info { x = xP, y = yP }
     , rotate pos
         -45
         (Svg.ellipse
-            [ cx (String.fromFloat xP)
-            , cy (String.fromFloat yP)
-            , ry (String.fromFloat 10)
-            , rx (String.fromFloat 12)
-            ]
+            ([ cx (String.fromFloat xP)
+             , cy (String.fromFloat yP)
+             , ry (String.fromFloat 10)
+             , rx (String.fromFloat 12)
+             ]
+                ++ attribs
+            )
             []
         )
     ]
 
 
-renderStem : ImgInfo -> Pos -> Svg msg
-renderStem info pos =
+renderStem : List (Attribute msg) -> ImgInfo -> Pos -> Svg msg
+renderStem attribs info pos =
     let
         h =
             44
     in
     rect
-        [ width (String.fromFloat info.lineWidth)
-        , height (String.fromFloat h)
-        , x (String.fromFloat (pos.x + 7))
-        , y (String.fromFloat (pos.y - h))
-        ]
+        ([ width (String.fromFloat info.lineWidth)
+         , height (String.fromFloat h)
+         , x (String.fromFloat (pos.x + 7))
+         , y (String.fromFloat (pos.y - h))
+         ]
+            ++ attribs
+        )
         []
 
 
-renderHalf : ImgInfo -> Pos -> List (Svg msg)
-renderHalf info pos =
+renderHalf : List (Attribute msg) -> ImgInfo -> Pos -> List (Svg msg)
+renderHalf attrib info pos =
     let
         xP =
             pos.x
@@ -394,7 +431,7 @@ renderHalf info pos =
                     []
                 )
     in
-    renderQuater info pos ++ [ inner ]
+    renderQuater attrib info pos ++ [ inner ]
 
 
 rotate : Pos -> Float -> Svg msg -> Svg msg

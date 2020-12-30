@@ -219,7 +219,14 @@ mapChord (ApiChord c) =
 
 updateBeat : PlayInfo -> PlayInfo
 updateBeat info =
-    nextChord info
+    let
+        newInfo =
+            nextChord info
+
+        strumming =
+            Strumming.nextNote newInfo.strumming
+    in
+    { newInfo | strumming = strumming }
 
 
 nextChord : PlayInfo -> PlayInfo
