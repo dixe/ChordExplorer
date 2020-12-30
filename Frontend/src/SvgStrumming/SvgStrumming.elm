@@ -140,7 +140,7 @@ nextNoteM ({ before, current, after } as pattern) =
                     pattern
 
                 b :: bs ->
-                    { pattern | current = b, before = [], after = bs }
+                    { pattern | current = b, before = [], after = bs ++ [ current ] }
 
 
 
