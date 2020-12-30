@@ -25,23 +25,60 @@ type alias ImgInfo =
     { lineWidth : Float
     , imgHeight : Float
     , imgWidth : Float
+    , noteWidth : Float
+    , xStart : Float
+    }
+
+
+type alias TimeSignature =
+    ( Int, Int )
+
+
+type alias Pattern =
+    { before : List Note
+    , current : Note
+    , after : List Note
+    , bars : Int
+    , timeSignature : TimeSignature
     }
 
 
 type alias Model =
-    { info : ImgInfo }
+    { info : ImgInfo, pattern : Pattern }
 
 
 initModel : Model
 initModel =
-    { info = createDefaultImgInfo }
+    { info = createDefaultImgInfo defaultPattern
+    , pattern = defaultPattern
+    }
 
 
-createDefaultImgInfo : ImgInfo
-createDefaultImgInfo =
+
+-- LOGIC
+
+
+getTotalBeats : Pattern -> Int
+getTotalBeats { bars, timeSignature } =
+    case timeSignature of
+        ( top, bot ) ->
+            bars * top
+
+
+createDefaultImgInfo : Pattern -> ImgInfo
+createDefaultImgInfo pattern =
     let
+        totalBeats =
+            getTotalBeats pattern
+
+        noteWidth =
+            30
+
+        xStart =
+            noteWidth * 3
+
         imgWidth =
-            600
+            noteWidth * 2 * toFloat totalBeats
 
         imgHeight =
             100
@@ -49,7 +86,33 @@ createDefaultImgInfo =
     { lineWidth = 4
     , imgHeight = imgHeight
     , imgWidth = imgWidth
+    , noteWidth = noteWidth
+    , xStart = xStart
     }
+
+
+defaultPattern : Pattern
+defaultPattern =
+    { before = [ Note Whole, Note Half ]
+    , current = Note Whole
+    , after = [ Note Quater, Note Quater, Note Quater ]
+    , bars = 4
+    , timeSignature = ( 4, 4 )
+    }
+
+
+flatMap : (a -> List b) -> List a -> List b
+flatMap f l =
+    case l of
+        [] ->
+            []
+
+        n :: ns ->
+            f n ++ flatMap f ns
+
+
+
+-- VIEW
 
 
 view : List (Element.Attribute msg) -> Model -> Element msg
@@ -63,26 +126,127 @@ view att model =
 
 
 renderPattern : Model -> Svg msg
-renderPattern { info } =
-    let
-        pos =
-            { x = 50, y = info.imgHeight / 2 + (info.lineWidth / 2) }
-    in
+renderPattern ({ info, pattern } as model) =
     svg
         [ width (String.fromFloat info.imgWidth)
         , height (String.fromFloat info.imgHeight)
         , viewBox ("0 0 " ++ String.fromFloat info.imgWidth ++ " " ++ String.fromFloat info.imgHeight)
         ]
-        (renderWhole pos
-            ++ renderQuater { pos | x = 150 }
-            ++ [ Svg.rect
-                    [ width (String.fromFloat info.imgWidth)
-                    , height (String.fromFloat info.lineWidth)
-                    , y (String.fromFloat (info.imgHeight / 2))
-                    ]
-                    []
-               ]
+        (renderTimeSignature pattern.timeSignature
+            ++ renderMiddleLine info
+            ++ renderNotes model
         )
+
+
+renderTimeSignature : TimeSignature -> List (Svg msg)
+renderTimeSignature ( top, bot ) =
+    [ Svg.text_
+        [ x "20"
+        , y "45"
+        , SA.fontSize "40"
+        , SA.textAnchor "middle"
+        , SA.fontWeight "bold"
+        ]
+        [ Svg.text (String.fromInt top) ]
+    , Svg.text_
+        [ x "20"
+        , y "90"
+        , SA.fontSize "40"
+        , SA.textAnchor "middle"
+        , SA.fontWeight "bold"
+        ]
+        [ Svg.text (String.fromInt bot) ]
+    ]
+
+
+renderMiddleLine : ImgInfo -> List (Svg msg)
+renderMiddleLine info =
+    [ Svg.rect
+        [ width (String.fromFloat info.imgWidth)
+        , height (String.fromFloat info.lineWidth)
+        , y (String.fromFloat (info.imgHeight / 2))
+        , fill "gray"
+        ]
+        []
+    ]
+
+
+renderNotes : Model -> List (Svg msg)
+renderNotes { info, pattern } =
+    let
+        -- get a list of all note to be shown, and map then with an X-position
+        allNotes =
+            pattern.before ++ [ pattern.current ] ++ pattern.after
+
+        pos : Pos
+        pos =
+            { x = 50, y = info.imgHeight / 2 + (info.lineWidth / 2) }
+
+        notesWithStart =
+            List.map (\( note, x ) -> ( note, { pos | x = x } ))
+                (mapNoteStartX info pattern.timeSignature allNotes info.xStart)
+
+        d =
+            Debug.log "NotesWithStart" notesWithStart
+    in
+    flatMap (renderNote info) notesWithStart
+
+
+renderNote : ImgInfo -> ( Note, Pos ) -> List (Svg msg)
+renderNote info ( note, pos ) =
+    case note of
+        Note d ->
+            case d of
+                Whole ->
+                    renderWhole pos
+
+                Half ->
+                    renderHalf info pos
+
+                Quater ->
+                    renderQuater info pos
+
+        Rest _ ->
+            []
+
+
+mapNoteStartX : ImgInfo -> TimeSignature -> List Note -> Float -> List ( Note, Float )
+mapNoteStartX info timeSig notes current =
+    case notes of
+        [] ->
+            []
+
+        n :: ns ->
+            let
+                dur =
+                    info.noteWidth
+                        * 2
+                        * getNoteDuration timeSig n
+            in
+            ( n, current ) :: mapNoteStartX info timeSig ns (current + dur)
+
+
+getNoteDuration : TimeSignature -> Note -> Float
+getNoteDuration timeSig note =
+    case note of
+        Note d ->
+            getDurationLength timeSig d
+
+        Rest d ->
+            getDurationLength timeSig d
+
+
+getDurationLength : TimeSignature -> Duration -> Float
+getDurationLength ( top, bot ) dur =
+    case dur of
+        Whole ->
+            toFloat top
+
+        Half ->
+            toFloat bot / 2
+
+        Quater ->
+            toFloat bot / 4
 
 
 renderWhole : Pos -> List (Svg msg)
@@ -105,8 +269,8 @@ renderWhole pos =
     ]
 
 
-renderQuater : Pos -> List (Svg msg)
-renderQuater pos =
+renderQuater : ImgInfo -> Pos -> List (Svg msg)
+renderQuater info pos =
     let
         xP =
             pos.x
@@ -114,7 +278,8 @@ renderQuater pos =
         yP =
             pos.y
     in
-    [ rotate pos
+    [ renderStem info { x = xP, y = yP }
+    , rotate pos
         -45
         (Svg.ellipse
             [ cx (String.fromFloat xP)
@@ -125,6 +290,49 @@ renderQuater pos =
             []
         )
     ]
+
+
+renderStem : ImgInfo -> Pos -> Svg msg
+renderStem info pos =
+    let
+        h =
+            44
+    in
+    rect
+        [ width (String.fromFloat info.lineWidth)
+        , height (String.fromFloat h)
+        , x (String.fromFloat (pos.x + 7))
+        , y (String.fromFloat (pos.y - h))
+        ]
+        []
+
+
+renderHalf : ImgInfo -> Pos -> List (Svg msg)
+renderHalf info pos =
+    let
+        xP =
+            pos.x
+
+        yP =
+            pos.y
+
+        h =
+            45
+
+        inner =
+            rotate { x = xP, y = yP }
+                -45
+                (Svg.ellipse
+                    [ cx (String.fromFloat xP)
+                    , cy (String.fromFloat yP)
+                    , ry (String.fromFloat 5)
+                    , rx (String.fromFloat 9)
+                    , fill "white"
+                    ]
+                    []
+                )
+    in
+    renderQuater info pos ++ [ inner ]
 
 
 rotate : Pos -> Float -> Svg msg -> Svg msg

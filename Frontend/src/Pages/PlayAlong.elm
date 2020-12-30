@@ -284,7 +284,7 @@ viewPlayAlong info =
     column []
         [ viewChords info
         , viewControls info
-        , Strumming.view [ centerX ] info.strumming
+        , Strumming.view [ centerX, Border.width 1 ] info.strumming
         ]
 
 
