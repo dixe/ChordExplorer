@@ -2,6 +2,7 @@ module Main exposing (..)
 
 import Browser
 import Browser.Navigation as Nav
+import Json.Encode as Encode
 import Routing
 import Url exposing (Url)
 

@@ -1,11 +1,17 @@
-module SvgStrumming.SvgStrumming exposing (Model, initModel, tick, tickTime, updateBpm, view)
+port module SvgStrumming.SvgStrumming exposing (Model, initModel, tick, tickTime, updateBpm, view)
 
 import Element exposing (Element, column, html, text)
 import Element.Input exposing (button)
+import Html as Html
+import Html.Attributes as HtmlAttributes
 import Json.Decode exposing (..)
+import Json.Encode as Encode
 import Svg exposing (Attribute, Svg, circle, node, rect, svg)
 import Svg.Attributes as SA exposing (..)
 import Svg.Events exposing (..)
+
+
+port play : Encode.Value -> Cmd msg
 
 
 type Note
@@ -229,7 +235,7 @@ updateBpm ({ pattern } as model) bpm =
     { model | pattern = p }
 
 
-tick : Model -> Model
+tick : Model -> ( Model, Bool, Cmd msg )
 tick ({ pattern } as model) =
     let
         time =
@@ -260,8 +266,15 @@ tick ({ pattern } as model) =
 
             else
                 { pattern | ticks = ticks }
+
+        cmd =
+            if moveNextNote then
+                play (Encode.bool moveNextNote)
+
+            else
+                Cmd.none
     in
-    { model | pattern = finalPattern }
+    ( { model | pattern = finalPattern }, moveNextNote, cmd )
 
 
 nextNote : Pattern -> Pattern
@@ -304,8 +317,16 @@ view att model =
         svgHtml : Svg msg
         svgHtml =
             renderPattern model
+
+        metronomeClickHtml =
+            Html.audio
+                [ HtmlAttributes.id "metronome-play"
+                , HtmlAttributes.src "click.mp3"
+                , HtmlAttributes.controls False
+                ]
+                []
     in
-    column att [ html svgHtml ]
+    column att [ html svgHtml, html metronomeClickHtml ]
 
 
 renderPattern : Model -> Svg msg

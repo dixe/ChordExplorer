@@ -153,6 +153,20 @@ mapPlayInfo f model =
             model
 
 
+mapPlayInfoCmd : (PlayInfo -> ( PlayInfo, Cmd msg )) -> Model -> ( Model, Cmd msg )
+mapPlayInfoCmd f model =
+    case model of
+        PlayAlong p ->
+            let
+                ( info, cmd ) =
+                    f p
+            in
+            ( PlayAlong info, cmd )
+
+        _ ->
+            ( model, Cmd.none )
+
+
 update : Msg -> Model -> ( Model, Cmd Msg )
 update msg model =
     case msg of
@@ -175,7 +189,7 @@ update msg model =
             ( mapChords apiChords, Cmd.none )
 
         Tick ->
-            ( mapPlayInfo updateBeat model, Cmd.none )
+            mapPlayInfoCmd updateBeat model
 
         UpdateBpm bpm ->
             ( mapPlayInfo (\info -> { info | strumming = Strumming.updateBpm info.strumming bpm }) model, Cmd.none )
@@ -205,16 +219,20 @@ mapChord (ApiChord c) =
     { id = c.id, name = c.name, svg = c.svg.svg, svgHeight = round c.svg.height, svgWidth = round c.svg.width }
 
 
-updateBeat : PlayInfo -> PlayInfo
+updateBeat : PlayInfo -> ( PlayInfo, Cmd msg )
 updateBeat info =
     let
-        newInfo =
-            nextChord info
+        ( strumming, changed, cmd ) =
+            Strumming.tick info.strumming
 
-        strumming =
-            Strumming.tick newInfo.strumming
+        newInfo =
+            if changed then
+                nextChord info
+
+            else
+                info
     in
-    { newInfo | strumming = strumming }
+    ( { newInfo | strumming = strumming }, cmd )
 
 
 nextChord : PlayInfo -> PlayInfo
