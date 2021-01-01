@@ -212,7 +212,7 @@ updateBeat info =
             nextChord info
 
         strumming =
-            Strumming.nextNote newInfo.strumming
+            Strumming.tick newInfo.strumming
     in
     { newInfo | strumming = strumming }
 
@@ -249,6 +249,7 @@ subscriptions model =
         PlayAlong info ->
             case info.state of
                 Playing ->
+                    -- Maybe put tickTime into model
                     Time.every (Strumming.tickTime info.strumming) (\_ -> Tick)
 
                 Stopped ->
