@@ -1,6 +1,7 @@
 module Pages.PlayAlong exposing (ChordBase, Model, Msg, initModel, initMsg, page, subscriptions, toChord, update)
 
 import Api.Api exposing (ApiChord(..), loadChords)
+import Browser.Events
 import Dict exposing (Dict)
 import Element exposing (..)
 import Element.Background as Background
@@ -11,6 +12,7 @@ import Element.Input as Input
 import FontAwesome.Icon as Icon
 import FontAwesome.Solid as IconSolid
 import FontAwesome.Styles
+import Json.Decode as Decode
 import Layout.Helper as LH exposing (..)
 import Svg exposing (Svg)
 import SvgStrumming.SvgStrumming as Strumming
@@ -25,6 +27,9 @@ type Msg
     | Tick
     | Loaded (Result String (List (ApiChord Msg)))
     | UpdateBpm Int
+    | Edit
+    | FinishEdit
+    | KeyPressed Strumming.EditAction
 
 
 type Model
@@ -45,6 +50,7 @@ type alias PlayInfo =
 type State
     = Playing
     | Stopped
+    | Editing
 
 
 type alias ChordBase msg =
@@ -194,6 +200,15 @@ update msg model =
         UpdateBpm bpm ->
             ( mapPlayInfo (\info -> { info | strumming = Strumming.updateBpm info.strumming bpm }) model, Cmd.none )
 
+        Edit ->
+            ( mapPlayInfo (\info -> { info | state = Editing }) model, Cmd.none )
+
+        FinishEdit ->
+            ( mapPlayInfo (\info -> { info | state = Stopped }) model, Cmd.none )
+
+        KeyPressed note ->
+            ( mapPlayInfo (\info -> { info | strumming = Strumming.updateAndAdvance info.strumming note }) model, Cmd.none )
+
 
 
 -- TODO stop ticking when no chords loaded
@@ -273,8 +288,16 @@ subscriptions model =
                 Stopped ->
                     Sub.none
 
+                Editing ->
+                    Browser.Events.onKeyUp keyDecoder
+
         _ ->
             Sub.none
+
+
+keyDecoder : Decode.Decoder Msg
+keyDecoder =
+    Decode.map KeyPressed Strumming.noteDecoder
 
 
 
@@ -286,8 +309,23 @@ viewPlayAlong info =
     column []
         [ viewChords info
         , viewControls info
-        , Strumming.view [ centerX, Border.width 1 ] info.strumming
+        , Strumming.view [ centerX ] info.strumming
+        , viewEditControls info
         ]
+
+
+viewEditControls : PlayInfo -> Element Msg
+viewEditControls info =
+    case info.state of
+        Editing ->
+            Element.row [ Element.paddingXY 0 10 ]
+                [ Input.button [] { label = Element.text "Finish", onPress = Just FinishEdit }
+                ]
+
+        _ ->
+            Element.row [ Element.paddingXY 0 10 ]
+                [ Input.button [] { label = Element.text "Edit", onPress = Just Edit }
+                ]
 
 
 viewChords : PlayInfo -> Element Msg
@@ -340,6 +378,9 @@ startStopControl info =
 
         Stopped ->
             controlButton IconSolid.play Start
+
+        Editing ->
+            Element.none
 
 
 controlButton : Icon.Icon -> Msg -> Element Msg

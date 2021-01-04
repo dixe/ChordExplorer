@@ -1,10 +1,10 @@
-port module SvgStrumming.SvgStrumming exposing (Model, initModel, tick, tickTime, updateBpm, view)
+port module SvgStrumming.SvgStrumming exposing (EditAction, Model, Note, initModel, noteDecoder, tick, tickTime, updateAndAdvance, updateBpm, view)
 
 import Element exposing (Element, column, html, text)
 import Element.Input exposing (button)
 import Html as Html
 import Html.Attributes as HtmlAttributes
-import Json.Decode exposing (..)
+import Json.Decode as Decode
 import Json.Encode as Encode
 import Svg exposing (Attribute, Svg, circle, node, rect, svg)
 import Svg.Attributes as SA exposing (..)
@@ -39,6 +39,12 @@ type alias ImgInfo =
     }
 
 
+type EditAction
+    = Change Note
+    | Add
+    | None
+
+
 type alias TimeSignature =
     ( Int, Int )
 
@@ -64,6 +70,19 @@ initModel =
 
 
 -- LOGIC
+
+
+updateAndAdvance : Model -> EditAction -> Model
+updateAndAdvance ({ pattern } as model) note =
+    case note of
+        Change n ->
+            { model | pattern = { pattern | notes = Cl.next <| Cl.updateCurrent n pattern.notes } }
+
+        Add ->
+            { model | pattern = { pattern | notes = Cl.add (Note Quater) pattern.notes } }
+
+        None ->
+            model
 
 
 tickTime : Model -> Float
@@ -211,6 +230,17 @@ flatMap f l =
 
 
 -- UPDATE
+{-
+
+   update : Msg -> Model -> ( Model, Cmd Msg )
+   update msg model =
+       case msg of
+           Edit ->
+               ( { model | state = Editing }, Cmd.none )
+
+           FinishEdit ->
+               ( { model | state = Playing }, Cmd.none )
+-}
 
 
 updateBpm : Model -> Int -> Model
@@ -280,6 +310,43 @@ noteTotalTime { bpm, timeSignature, notes } =
 
 
 
+-- Subscription decoders
+
+
+noteDecoder : Decode.Decoder EditAction
+noteDecoder =
+    Decode.map toNote (Decode.field "key" Decode.string)
+
+
+toNote : String -> EditAction
+toNote string =
+    let
+        d =
+            Debug.log "keyString " string
+    in
+    case String.uncons string of
+        Just ( k, "" ) ->
+            case k of
+                'q' ->
+                    Change <| Note Quater
+
+                'w' ->
+                    Change <| Note Whole
+
+                'h' ->
+                    Change <| Note Half
+
+                'n' ->
+                    Add
+
+                _ ->
+                    None
+
+        _ ->
+            None
+
+
+
 -- VIEW
 
 
@@ -297,8 +364,11 @@ view att model =
                 , HtmlAttributes.controls False
                 ]
                 []
+
+        elements =
+            [ html svgHtml, html metronomeClickHtml ]
     in
-    column att [ html svgHtml, html metronomeClickHtml ]
+    column att elements
 
 
 renderPattern : Model -> Svg msg
@@ -312,7 +382,35 @@ renderPattern ({ info, pattern } as model) =
             ++ renderBarLines info pattern
             ++ renderMiddleLine info
             ++ renderNotes model
+            ++ renderRythmBox info
         )
+
+
+renderRythmBox : ImgInfo -> List (Svg msg)
+renderRythmBox info =
+    [ Svg.rect
+        [ width <| String.fromFloat info.imgWidth
+        , height "1"
+        ]
+        []
+    , Svg.rect
+        [ width <| String.fromFloat info.imgWidth
+        , height "1"
+        , y <| String.fromFloat (info.imgHeight - 1)
+        ]
+        []
+    , Svg.rect
+        [ height <| String.fromFloat info.imgHeight
+        , width "1"
+        ]
+        []
+    , Svg.rect
+        [ height <| String.fromFloat info.imgHeight
+        , width "1"
+        , x <| String.fromFloat (info.imgWidth - 1)
+        ]
+        []
+    ]
 
 
 renderTimeSignature : TimeSignature -> List (Svg msg)

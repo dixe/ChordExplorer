@@ -1,4 +1,4 @@
-module Utils.NonEmptyCyclicList exposing (NonEmptyCyclicList, cur, getAll, init, map, next)
+module Utils.NonEmptyCyclicList exposing (NonEmptyCyclicList, add, advanceToNew, cur, getAll, init, map, next, updateCurrent)
 
 
 type alias NonEmptyCyclicList a =
@@ -6,6 +6,11 @@ type alias NonEmptyCyclicList a =
     , current : a
     , after : List a
     }
+
+
+updateCurrent : a -> NonEmptyCyclicList a -> NonEmptyCyclicList a
+updateCurrent a l =
+    { l | current = a }
 
 
 init : a -> List a -> NonEmptyCyclicList a
@@ -26,6 +31,16 @@ next ({ before, current, after } as pattern) =
 
                 b :: bs ->
                     { pattern | current = b, before = [], after = bs ++ [ current ] }
+
+
+advanceToNew : a -> NonEmptyCyclicList a -> NonEmptyCyclicList a
+advanceToNew new ({ before, current } as model) =
+    { model | before = before ++ [ current ], current = new }
+
+
+add : a -> NonEmptyCyclicList a -> NonEmptyCyclicList a
+add new ({ after } as model) =
+    { model | after = after ++ [ new ] }
 
 
 cur : NonEmptyCyclicList a -> a
