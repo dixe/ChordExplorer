@@ -1,4 +1,4 @@
-port module SvgStrumming.SvgStrumming exposing (Model, initModel, tick, tickTime, updateBpm, view)
+module SvgRythm.SvgRythm exposing (Model, initModel, view)
 
 import Element exposing (Element, column, html, text)
 import Element.Input exposing (button)
@@ -9,21 +9,7 @@ import Json.Encode as Encode
 import Svg exposing (Attribute, Svg, circle, node, rect, svg)
 import Svg.Attributes as SA exposing (..)
 import Svg.Events exposing (..)
-import Utils.NonEmptyCyclicList as Cl
-
-
-port play : Encode.Value -> Cmd msg
-
-
-type Note
-    = Note Duration
-    | Rest Duration
-
-
-type Duration
-    = Whole
-    | Half
-    | Quater
+import Utils.Rythm exposing (Duration(..), Note(..), Rythm, TimeSignature, getNoteDuration, getTotalBeats)
 
 
 type alias Pos =
@@ -39,127 +25,21 @@ type alias ImgInfo =
     }
 
 
-type alias TimeSignature =
-    ( Int, Int )
-
-
-type alias Pattern =
-    { notes : Cl.NonEmptyCyclicList Note
-    , timeSignature : TimeSignature
-    , bpm : Int
-    , ticks : Int
-    }
-
-
 type alias Model =
-    { info : ImgInfo, pattern : Pattern }
+    { info : ImgInfo }
 
 
-initModel : Model
-initModel =
-    { info = createDefaultImgInfo defaultPattern
-    , pattern = defaultPattern
+initModel : Rythm -> Model
+initModel rythm =
+    { info = createDefaultImgInfo rythm
     }
 
 
-
--- LOGIC
-
-
-tickTime : Model -> Float
-tickTime { pattern } =
-    let
-        beatLength =
-            beatDuration pattern.bpm
-
-        -- find lowest note duration and calc tick time based on that
-        lowest =
-            lowestDuration Quater (Cl.getAll pattern.notes)
-
-        minBeatValue =
-            getDurationLength pattern.timeSignature lowest
-    in
-    beatLength * minBeatValue
-
-
-beatDuration : Int -> Float
-beatDuration bpm =
-    let
-        min =
-            toFloat 1000 * 60
-    in
-    min / toFloat bpm
-
-
-lowestDuration : Duration -> List Note -> Duration
-lowestDuration init notes =
-    case notes of
-        [] ->
-            init
-
-        n :: ns ->
-            let
-                d =
-                    getDuration n
-
-                next =
-                    compareDuration init d
-            in
-            lowestDuration next ns
-
-
-compareDuration : Duration -> Duration -> Duration
-compareDuration a b =
-    case ( a, b ) of
-        ( Whole, _ ) ->
-            b
-
-        ( _, Whole ) ->
-            a
-
-        ( Half, _ ) ->
-            b
-
-        ( _, Half ) ->
-            a
-
-        ( Quater, _ ) ->
-            b
-
-
-getDuration : Note -> Duration
-getDuration note =
-    case note of
-        Note d ->
-            d
-
-        Rest d ->
-            d
-
-
-getTotalBeats : Pattern -> Int
-getTotalBeats { timeSignature, notes } =
-    let
-        partial =
-            getNoteDuration timeSignature
-
-        total =
-            round <| List.sum <| List.map partial <| Cl.getAll notes
-
-        beatsPrBar =
-            Tuple.first timeSignature
-
-        rem =
-            remainderBy beatsPrBar total
-    in
-    total + beatsPrBar - rem
-
-
-createDefaultImgInfo : Pattern -> ImgInfo
-createDefaultImgInfo pattern =
+createDefaultImgInfo : Rythm -> ImgInfo
+createDefaultImgInfo rythm =
     let
         totalBeats =
-            getTotalBeats pattern
+            getTotalBeats rythm
 
         noteWidth =
             30
@@ -181,24 +61,6 @@ createDefaultImgInfo pattern =
     }
 
 
-defaultPattern2 : Pattern
-defaultPattern2 =
-    { notes = Cl.init (Note Whole) [ Note Whole, Note Whole, Note Half, Note Half ]
-    , timeSignature = ( 4, 4 )
-    , bpm = 70
-    , ticks = 0
-    }
-
-
-defaultPattern : Pattern
-defaultPattern =
-    { notes = Cl.init (Note Whole) [ Note Whole, Note Whole, Note Half, Note Half ]
-    , timeSignature = ( 4, 4 )
-    , bpm = 70
-    , ticks = 0
-    }
-
-
 flatMap : (a -> List b) -> List a -> List b
 flatMap f l =
     case l of
@@ -210,85 +72,15 @@ flatMap f l =
 
 
 
--- UPDATE
-
-
-updateBpm : Model -> Int -> Model
-updateBpm ({ pattern } as model) bpm =
-    let
-        p =
-            { pattern | bpm = bpm }
-    in
-    { model | pattern = p }
-
-
-tick : Model -> ( Model, Bool, Cmd msg )
-tick ({ pattern } as model) =
-    let
-        time =
-            tickTime model
-
-        ticks =
-            pattern.ticks + 1
-
-        passed =
-            toFloat ticks * time
-
-        noteTime =
-            noteTotalTime pattern
-
-        moveNextNote =
-            passed >= noteTime
-
-        nextPattern =
-            if moveNextNote then
-                { pattern | notes = Cl.next pattern.notes }
-
-            else
-                pattern
-
-        finalPattern =
-            if moveNextNote then
-                { nextPattern | ticks = 0 }
-
-            else
-                { pattern | ticks = ticks }
-
-        cmd =
-            if moveNextNote then
-                play (Encode.bool moveNextNote)
-
-            else
-                Cmd.none
-    in
-    ( { model | pattern = finalPattern }, moveNextNote, cmd )
-
-
-noteTotalTime : Pattern -> Float
-noteTotalTime { bpm, timeSignature, notes } =
-    let
-        beatLen =
-            beatDuration bpm
-
-        noteBeats =
-            getDurationLength timeSignature (getDuration <| Cl.cur notes)
-
-        noteLen =
-            noteBeats * beatLen
-    in
-    noteLen
-
-
-
 -- VIEW
 
 
-view : List (Element.Attribute msg) -> Model -> Element msg
-view att model =
+view : List (Element.Attribute msg) -> Rythm -> Model -> Element msg
+view att rythm model =
     let
         svgHtml : Svg msg
         svgHtml =
-            renderPattern model
+            renderRythm rythm model
 
         metronomeClickHtml =
             Html.audio
@@ -301,17 +93,17 @@ view att model =
     column att [ html svgHtml, html metronomeClickHtml ]
 
 
-renderPattern : Model -> Svg msg
-renderPattern ({ info, pattern } as model) =
+renderRythm : Rythm -> Model -> Svg msg
+renderRythm rythm ({ info } as model) =
     svg
         [ width (String.fromFloat info.imgWidth)
         , height (String.fromFloat info.imgHeight)
         , viewBox ("0 0 " ++ String.fromFloat info.imgWidth ++ " " ++ String.fromFloat info.imgHeight)
         ]
-        (renderTimeSignature pattern.timeSignature
-            ++ renderBarLines info pattern
+        (renderTimeSignature rythm.timeSignature
+            ++ renderBarLines info rythm
             ++ renderMiddleLine info
-            ++ renderNotes model
+            ++ renderNotes rythm model
         )
 
 
@@ -336,8 +128,8 @@ renderTimeSignature ( top, bot ) =
     ]
 
 
-renderBarLines : ImgInfo -> Pattern -> List (Svg msg)
-renderBarLines info pattern =
+renderBarLines : ImgInfo -> Rythm -> List (Svg msg)
+renderBarLines info rythm =
     let
         line : Float -> Svg msg
         line xStart =
@@ -349,7 +141,7 @@ renderBarLines info pattern =
                 []
 
         totalLines =
-            getTotalBeats pattern // Tuple.first pattern.timeSignature
+            getTotalBeats rythm // Tuple.first rythm.timeSignature
 
         linesStart =
             List.map (\x -> info.xStart + toFloat x * 4 * 2 * info.noteWidth) <|
@@ -370,8 +162,8 @@ renderMiddleLine info =
     ]
 
 
-renderNotes : Model -> List (Svg msg)
-renderNotes { info, pattern } =
+renderNotes : Rythm -> Model -> List (Svg msg)
+renderNotes rythm { info } =
     let
         -- get a list of all note to be shown, and map then with an X-position
         pos : Pos
@@ -388,13 +180,13 @@ renderNotes { info, pattern } =
             getStart info info.xStart
 
         before =
-            mapNoteStartX info pattern.timeSignature pattern.notes.before (start [])
+            mapNoteStartX info rythm rythm.notes.before (start [])
 
         current =
-            mapNoteStartX info pattern.timeSignature [ pattern.notes.current ] (start before)
+            mapNoteStartX info rythm [ rythm.notes.current ] (start before)
 
         after =
-            mapNoteStartX info pattern.timeSignature pattern.notes.after (start current)
+            mapNoteStartX info rythm rythm.notes.after (start current)
 
         notesWithStart =
             setPos before ++ setPosCurrent current ++ setPos after
@@ -438,8 +230,8 @@ renderNote info ( note, isCurrent, pos ) =
             []
 
 
-mapNoteStartX : ImgInfo -> TimeSignature -> List Note -> Float -> List ( Note, ( Float, Float ) )
-mapNoteStartX info timeSig notes current =
+mapNoteStartX : ImgInfo -> Rythm -> List Note -> Float -> List ( Note, ( Float, Float ) )
+mapNoteStartX info rythm notes current =
     case notes of
         [] ->
             []
@@ -449,32 +241,9 @@ mapNoteStartX info timeSig notes current =
                 dur =
                     info.noteWidth
                         * 2
-                        * getNoteDuration timeSig n
+                        * getNoteDuration rythm n
             in
-            ( n, ( current, current + dur ) ) :: mapNoteStartX info timeSig ns (current + dur)
-
-
-getNoteDuration : TimeSignature -> Note -> Float
-getNoteDuration timeSig note =
-    case note of
-        Note d ->
-            getDurationLength timeSig d
-
-        Rest d ->
-            getDurationLength timeSig d
-
-
-getDurationLength : TimeSignature -> Duration -> Float
-getDurationLength ( top, bot ) dur =
-    case dur of
-        Whole ->
-            toFloat top
-
-        Half ->
-            toFloat bot / 2
-
-        Quater ->
-            toFloat bot / 4
+            ( n, ( current, current + dur ) ) :: mapNoteStartX info rythm ns (current + dur)
 
 
 renderWhole : List (Attribute msg) -> Pos -> List (Svg msg)

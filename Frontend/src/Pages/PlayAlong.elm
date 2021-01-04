@@ -13,9 +13,11 @@ import FontAwesome.Solid as IconSolid
 import FontAwesome.Styles
 import Layout.Helper as LH exposing (..)
 import Svg exposing (Svg)
-import SvgStrumming.SvgStrumming as Strumming
+import SvgRythm.SvgRythm as SR
 import Task
 import Time
+import Utils.NonEmptyCyclicList as Cl
+import Utils.Rythm as Rythm
 
 
 type Msg
@@ -34,11 +36,10 @@ type Model
 
 
 type alias PlayInfo =
-    { before : List (Chord Msg)
-    , current : Chord Msg
-    , after : List (Chord Msg)
+    { chords : Cl.NonEmptyCyclicList (Chord Msg)
     , state : State
-    , strumming : Strumming.Model
+    , strumming : SR.Model
+    , rythm : Rythm.Rythm
     }
 
 
@@ -82,11 +83,10 @@ initModel ids chords =
 
 newPlayAlong : Chord Msg -> List (Chord Msg) -> PlayInfo
 newPlayAlong current rest =
-    { current = current
-    , before = []
-    , after = rest
+    { chords = Cl.init current rest
     , state = defaultState
-    , strumming = Strumming.initModel
+    , strumming = SR.initModel Rythm.defaultRythm
+    , rythm = Rythm.defaultRythm
     }
 
 
@@ -192,7 +192,7 @@ update msg model =
             mapPlayInfoCmd updateBeat model
 
         UpdateBpm bpm ->
-            ( mapPlayInfo (\info -> { info | strumming = Strumming.updateBpm info.strumming bpm }) model, Cmd.none )
+            ( mapPlayInfo (\info -> { info | rythm = Rythm.updateBpm info.rythm bpm }) model, Cmd.none )
 
 
 
@@ -222,39 +222,17 @@ mapChord (ApiChord c) =
 updateBeat : PlayInfo -> ( PlayInfo, Cmd msg )
 updateBeat info =
     let
-        ( strumming, changed, cmd ) =
-            Strumming.tick info.strumming
+        ( rythm, changed, cmd ) =
+            Rythm.tick info.rythm
 
         newInfo =
             if changed then
-                nextChord info
+                { info | chords = Cl.next info.chords }
 
             else
                 info
     in
-    ( { newInfo | strumming = strumming }, cmd )
-
-
-nextChord : PlayInfo -> PlayInfo
-nextChord ({ before, current, after } as info) =
-    case after of
-        next :: rest ->
-            let
-                bf =
-                    before ++ [ current ]
-
-                cur =
-                    next
-            in
-            { info | before = bf, current = cur, after = rest }
-
-        [] ->
-            case before of
-                [] ->
-                    info
-
-                b :: rest ->
-                    { info | before = [], current = b, after = rest ++ [ current ] }
+    ( { newInfo | rythm = rythm }, cmd )
 
 
 
@@ -268,7 +246,7 @@ subscriptions model =
             case info.state of
                 Playing ->
                     -- Maybe put tickTime into model
-                    Time.every (Strumming.tickTime info.strumming) (\_ -> Tick)
+                    Time.every (Rythm.tickTime info.rythm) (\_ -> Tick)
 
                 Stopped ->
                     Sub.none
@@ -286,7 +264,7 @@ viewPlayAlong info =
     column []
         [ viewChords info
         , viewControls info
-        , Strumming.view [ centerX, Border.width 1 ] info.strumming
+        , SR.view [ centerX, Border.width 1 ] info.rythm info.strumming
         ]
 
 
@@ -294,13 +272,13 @@ viewChords : PlayInfo -> Element Msg
 viewChords info =
     let
         before =
-            List.map (viewChord []) info.before
+            List.map (viewChord []) info.chords.before
 
         current =
-            viewChord currentAttribs info.current
+            viewChord currentAttribs info.chords.current
 
         after =
-            List.map (viewChord []) info.after
+            List.map (viewChord []) info.chords.after
     in
     wrappedRow [ spacing 10, padding 10 ] (before ++ [ current ] ++ after)
 
@@ -371,11 +349,11 @@ tempoControl info =
         { onChange = round >> UpdateBpm
         , label =
             Input.labelAbove []
-                (text ("Bpm: " ++ String.fromInt info.strumming.pattern.bpm))
+                (text ("Bpm: " ++ String.fromInt info.rythm.bpm))
         , min = 60
         , max = 200
         , step = Just 1
-        , value = toFloat info.strumming.pattern.bpm
+        , value = toFloat info.rythm.bpm
         , thumb =
             Input.defaultThumb
         }
