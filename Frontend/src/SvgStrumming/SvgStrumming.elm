@@ -9,6 +9,7 @@ import Json.Encode as Encode
 import Svg exposing (Attribute, Svg, circle, node, rect, svg)
 import Svg.Attributes as SA exposing (..)
 import Svg.Events exposing (..)
+import Utils.NonEmptyCyclicList as Cl
 
 
 port play : Encode.Value -> Cmd msg
@@ -43,9 +44,7 @@ type alias TimeSignature =
 
 
 type alias Pattern =
-    { before : List Note
-    , current : Note
-    , after : List Note
+    { notes : Cl.NonEmptyCyclicList Note
     , timeSignature : TimeSignature
     , bpm : Int
     , ticks : Int
@@ -67,11 +66,6 @@ initModel =
 -- LOGIC
 
 
-getAllNotes : Pattern -> List Note
-getAllNotes { before, current, after } =
-    before ++ [ current ] ++ after
-
-
 tickTime : Model -> Float
 tickTime { pattern } =
     let
@@ -80,7 +74,7 @@ tickTime { pattern } =
 
         -- find lowest note duration and calc tick time based on that
         lowest =
-            lowestDuration Quater (getAllNotes pattern)
+            lowestDuration Quater (Cl.getAll pattern.notes)
 
         minBeatValue =
             getDurationLength pattern.timeSignature lowest
@@ -144,16 +138,13 @@ getDuration note =
 
 
 getTotalBeats : Pattern -> Int
-getTotalBeats { timeSignature, before, after, current } =
+getTotalBeats { timeSignature, notes } =
     let
         partial =
             getNoteDuration timeSignature
 
-        allNotes =
-            before ++ [ current ] ++ after
-
         total =
-            round <| List.sum <| List.map partial allNotes
+            round <| List.sum <| List.map partial <| Cl.getAll notes
 
         beatsPrBar =
             Tuple.first timeSignature
@@ -192,9 +183,7 @@ createDefaultImgInfo pattern =
 
 defaultPattern2 : Pattern
 defaultPattern2 =
-    { before = [ Note Whole, Note Whole, Note Half, Note Half ]
-    , current = Note Whole
-    , after = [ Note Quater, Note Quater, Note Half, Note Quater ]
+    { notes = Cl.init (Note Whole) [ Note Whole, Note Whole, Note Half, Note Half ]
     , timeSignature = ( 4, 4 )
     , bpm = 70
     , ticks = 0
@@ -203,9 +192,7 @@ defaultPattern2 =
 
 defaultPattern : Pattern
 defaultPattern =
-    { before = []
-    , current = Note Whole
-    , after = [ Note Whole, Note Whole, Note Half, Note Half ]
+    { notes = Cl.init (Note Whole) [ Note Whole, Note Whole, Note Half, Note Half ]
     , timeSignature = ( 4, 4 )
     , bpm = 70
     , ticks = 0
@@ -248,14 +235,14 @@ tick ({ pattern } as model) =
             toFloat ticks * time
 
         noteTime =
-            noteTotalTime pattern pattern.current
+            noteTotalTime pattern
 
         moveNextNote =
             passed >= noteTime
 
         nextPattern =
             if moveNextNote then
-                nextNote pattern
+                { pattern | notes = Cl.next pattern.notes }
 
             else
                 pattern
@@ -277,29 +264,14 @@ tick ({ pattern } as model) =
     ( { model | pattern = finalPattern }, moveNextNote, cmd )
 
 
-nextNote : Pattern -> Pattern
-nextNote ({ before, current, after } as pattern) =
-    case after of
-        a :: afters ->
-            { pattern | before = before ++ [ current ], current = a, after = afters }
-
-        [] ->
-            case before of
-                [] ->
-                    pattern
-
-                b :: bs ->
-                    { pattern | current = b, before = [], after = bs ++ [ current ] }
-
-
-noteTotalTime : Pattern -> Note -> Float
-noteTotalTime { bpm, timeSignature } note =
+noteTotalTime : Pattern -> Float
+noteTotalTime { bpm, timeSignature, notes } =
     let
         beatLen =
             beatDuration bpm
 
         noteBeats =
-            getDurationLength timeSignature (getDuration note)
+            getDurationLength timeSignature (getDuration <| Cl.cur notes)
 
         noteLen =
             noteBeats * beatLen
@@ -416,13 +388,13 @@ renderNotes { info, pattern } =
             getStart info info.xStart
 
         before =
-            mapNoteStartX info pattern.timeSignature pattern.before (start [])
+            mapNoteStartX info pattern.timeSignature pattern.notes.before (start [])
 
         current =
-            mapNoteStartX info pattern.timeSignature [ pattern.current ] (start before)
+            mapNoteStartX info pattern.timeSignature [ pattern.notes.current ] (start before)
 
         after =
-            mapNoteStartX info pattern.timeSignature pattern.after (start current)
+            mapNoteStartX info pattern.timeSignature pattern.notes.after (start current)
 
         notesWithStart =
             setPos before ++ setPosCurrent current ++ setPos after
