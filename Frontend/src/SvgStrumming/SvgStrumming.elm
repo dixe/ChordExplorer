@@ -39,10 +39,17 @@ type alias ImgInfo =
     }
 
 
+type Direction
+    = Left
+    | Right
+
+
 type EditAction
     = Change Note
     | Add
+    | Move Direction
     | None
+    | Delete
 
 
 type alias TimeSignature =
@@ -80,6 +87,17 @@ updateAndAdvance ({ pattern } as model) note =
 
         Add ->
             { model | pattern = { pattern | notes = Cl.add (Note Quater) pattern.notes } }
+
+        Delete ->
+            { model | pattern = { pattern | notes = Cl.delete pattern.notes } }
+
+        Move d ->
+            case d of
+                Left ->
+                    { model | pattern = { pattern | notes = Cl.left pattern.notes } }
+
+                Right ->
+                    { model | pattern = { pattern | notes = Cl.right pattern.notes } }
 
         None ->
             model
@@ -315,32 +333,36 @@ noteTotalTime { bpm, timeSignature, notes } =
 
 noteDecoder : Decode.Decoder EditAction
 noteDecoder =
-    Decode.map toNote (Decode.field "key" Decode.string)
+    Decode.map toEditAction (Decode.field "key" Decode.string)
 
 
-toNote : String -> EditAction
-toNote string =
+toEditAction : String -> EditAction
+toEditAction string =
     let
         d =
             Debug.log "keyString " string
     in
-    case String.uncons string of
-        Just ( k, "" ) ->
-            case k of
-                'q' ->
-                    Change <| Note Quater
+    case string of
+        "q" ->
+            Change <| Note Quater
 
-                'w' ->
-                    Change <| Note Whole
+        "w" ->
+            Change <| Note Whole
 
-                'h' ->
-                    Change <| Note Half
+        "h" ->
+            Change <| Note Half
 
-                'n' ->
-                    Add
+        "n" ->
+            Add
 
-                _ ->
-                    None
+        "d" ->
+            Delete
+
+        "ArrowLeft" ->
+            Move Left
+
+        "ArrowRight" ->
+            Move Right
 
         _ ->
             None

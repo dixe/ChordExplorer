@@ -1,4 +1,4 @@
-module Utils.NonEmptyCyclicList exposing (NonEmptyCyclicList, add, advanceToNew, cur, getAll, init, map, next, updateCurrent)
+module Utils.NonEmptyCyclicList exposing (NonEmptyCyclicList, add, advanceToNew, cur, delete, getAll, init, left, map, next, right, updateCurrent)
 
 
 type alias NonEmptyCyclicList a =
@@ -18,6 +18,26 @@ init first rest =
     { before = [], current = first, after = rest }
 
 
+left : NonEmptyCyclicList a -> NonEmptyCyclicList a
+left ({ before, current, after } as l) =
+    case List.reverse before of
+        b :: bs ->
+            { l | before = List.reverse bs, current = b, after = current :: after }
+
+        [] ->
+            case List.reverse after of
+                [] ->
+                    l
+
+                n :: ns ->
+                    { l | before = current :: ns, current = n, after = [] }
+
+
+right : NonEmptyCyclicList a -> NonEmptyCyclicList a
+right =
+    next
+
+
 next : NonEmptyCyclicList a -> NonEmptyCyclicList a
 next ({ before, current, after } as pattern) =
     case after of
@@ -31,6 +51,19 @@ next ({ before, current, after } as pattern) =
 
                 b :: bs ->
                     { pattern | current = b, before = [], after = bs ++ [ current ] }
+
+
+delete : NonEmptyCyclicList a -> NonEmptyCyclicList a
+delete ({ before, current, after } as model) =
+    case ( List.reverse before, after ) of
+        ( [], [] ) ->
+            model
+
+        ( b :: bs, _ ) ->
+            { model | before = List.reverse bs, current = b }
+
+        ( _, n :: ns ) ->
+            { model | after = ns, current = n }
 
 
 advanceToNew : a -> NonEmptyCyclicList a -> NonEmptyCyclicList a
@@ -55,4 +88,9 @@ getAll { before, current, after } =
 
 map : (a -> b) -> NonEmptyCyclicList a -> NonEmptyCyclicList b
 map f ({ before, current, after } as l) =
-    { before = List.map f before, current = f current, after = List.map f after }
+    { before = List.map f before
+    , current = f current
+    , after =
+        List.map f
+            after
+    }
