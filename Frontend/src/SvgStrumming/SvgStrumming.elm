@@ -24,6 +24,7 @@ type Duration
     = Whole
     | Half
     | Quater
+    | Eighth
 
 
 type alias Pos =
@@ -31,11 +32,8 @@ type alias Pos =
 
 
 type alias ImgInfo =
-    { lineWidth : Float
-    , imgHeight : Float
+    { imgHeight : Float
     , imgWidth : Float
-    , noteWidth : Float
-    , xStart : Float
     }
 
 
@@ -70,7 +68,7 @@ type alias Model =
 
 initModel : Model
 initModel =
-    { info = createDefaultImgInfo defaultPattern
+    { info = createImgInfo defaultPattern
     , pattern = defaultPattern
     }
 
@@ -86,7 +84,17 @@ updateAndAdvance ({ pattern } as model) note =
             { model | pattern = { pattern | notes = Cl.next <| Cl.updateCurrent n pattern.notes } }
 
         Add ->
-            { model | pattern = { pattern | notes = Cl.add (Note Quater) pattern.notes } }
+            let
+                newP =
+                    { pattern | notes = Cl.add (Note Quater) pattern.notes }
+
+                newInfo =
+                    createImgInfo newP
+
+                d =
+                    Debug.log "NewInfo" newInfo
+            in
+            { model | pattern = newP, info = newInfo }
 
         Delete ->
             { model | pattern = { pattern | notes = Cl.delete pattern.notes } }
@@ -140,13 +148,13 @@ lowestDuration init notes =
                     getDuration n
 
                 next =
-                    compareDuration init d
+                    pickLowest init d
             in
             lowestDuration next ns
 
 
-compareDuration : Duration -> Duration -> Duration
-compareDuration a b =
+pickLowest : Duration -> Duration -> Duration
+pickLowest a b =
     case ( a, b ) of
         ( Whole, _ ) ->
             b
@@ -161,6 +169,12 @@ compareDuration a b =
             a
 
         ( Quater, _ ) ->
+            b
+
+        ( _, Quater ) ->
+            b
+
+        ( Eighth, _ ) ->
             b
 
 
@@ -188,33 +202,33 @@ getTotalBeats { timeSignature, notes } =
 
         rem =
             remainderBy beatsPrBar total
+
+        d =
+            Debug.log "totalBeats" (total + beatsPrBar - rem)
     in
     total + beatsPrBar - rem
 
 
-createDefaultImgInfo : Pattern -> ImgInfo
-createDefaultImgInfo pattern =
+createImgInfo : Pattern -> ImgInfo
+createImgInfo pattern =
     let
-        totalBeats =
-            getTotalBeats pattern
+        bars =
+            toFloat <| getTotalBars pattern
 
-        noteWidth =
-            30
-
-        xStart =
-            noteWidth * 3
+        barsWidth =
+            bars * getBarWidth pattern
 
         imgWidth =
-            noteWidth * 2 * toFloat totalBeats
+            timeSigWidth + barsWidth
 
         imgHeight =
             100
+
+        d =
+            Debug.log "barWidth, ImgWidth" ( barsWidth, imgWidth )
     in
-    { lineWidth = 4
-    , imgHeight = imgHeight
+    { imgHeight = imgHeight
     , imgWidth = imgWidth
-    , noteWidth = noteWidth
-    , xStart = xStart
     }
 
 
@@ -229,7 +243,7 @@ defaultPattern2 =
 
 defaultPattern : Pattern
 defaultPattern =
-    { notes = Cl.init (Note Whole) [ Note Whole, Note Whole, Note Half, Note Half ]
+    { notes = Cl.init (Note Eighth) [ Note Whole, Note Whole, Note Half, Note Half ]
     , timeSignature = ( 4, 4 )
     , bpm = 70
     , ticks = 0
@@ -352,6 +366,9 @@ toEditAction string =
         "h" ->
             Change <| Note Half
 
+        "e" ->
+            Change <| Note Eighth
+
         "n" ->
             Add
 
@@ -370,6 +387,23 @@ toEditAction string =
 
 
 -- VIEW
+
+
+getTotalBars : Pattern -> Int
+getTotalBars ({ timeSignature, notes } as pattern) =
+    getTotalBeats pattern // Tuple.first pattern.timeSignature
+
+
+getBarWidth : Pattern -> Float
+getBarWidth ({ timeSignature, notes } as pattern) =
+    let
+        beats =
+            toFloat <| Tuple.first timeSignature
+
+        d =
+            Debug.log "Beats, notewidth" ( beats, noteWidth )
+    in
+    timeSigWidth + beats * 2 * noteWidth + lineWidth
 
 
 view : List (Element.Attribute msg) -> Model -> Element msg
@@ -462,18 +496,25 @@ renderBarLines info pattern =
         line : Float -> Svg msg
         line xStart =
             Svg.rect
-                [ width (String.fromFloat info.lineWidth)
+                [ width (String.fromFloat lineWidth)
                 , height (String.fromFloat info.imgHeight)
-                , x (String.fromFloat (xStart - info.noteWidth))
+                , x (String.fromFloat xStart)
                 ]
                 []
 
-        totalLines =
-            getTotalBeats pattern // Tuple.first pattern.timeSignature
+        bars =
+            getTotalBars pattern
+
+        barWidth =
+            getBarWidth pattern
 
         linesStart =
-            List.map (\x -> info.xStart + toFloat x * 4 * 2 * info.noteWidth) <|
-                List.range 0 totalLines
+            List.map (\x -> timeSigWidth + x * barWidth) <|
+                List.map toFloat <|
+                    List.range 0 bars
+
+        d =
+            Debug.log "xStart , lineStart" ( timeSigWidth, linesStart )
     in
     List.map line linesStart
 
@@ -482,7 +523,7 @@ renderMiddleLine : ImgInfo -> List (Svg msg)
 renderMiddleLine info =
     [ Svg.rect
         [ width (String.fromFloat info.imgWidth)
-        , height (String.fromFloat info.lineWidth)
+        , height (String.fromFloat lineWidth)
         , y (String.fromFloat (info.imgHeight / 2))
         , fill "gray"
         ]
@@ -496,7 +537,7 @@ renderNotes { info, pattern } =
         -- get a list of all note to be shown, and map then with an X-position
         pos : Pos
         pos =
-            { x = 0, y = info.imgHeight / 2 + (info.lineWidth / 2) }
+            { x = 0, y = info.imgHeight / 2 + (lineWidth / 2) }
 
         setPos =
             List.map (\( note, ( xS, end ) ) -> ( note, False, { pos | x = xS } ))
@@ -505,16 +546,16 @@ renderNotes { info, pattern } =
             List.map (\( note, ( xS, end ) ) -> ( note, True, { pos | x = xS } ))
 
         start =
-            getStart info info.xStart
+            getStart timeSigWidth
 
         before =
-            mapNoteStartX info pattern.timeSignature pattern.notes.before (start [])
+            mapNoteStartX info pattern pattern.notes.before (start [])
 
         current =
-            mapNoteStartX info pattern.timeSignature [ pattern.notes.current ] (start before)
+            mapNoteStartX info pattern [ pattern.notes.current ] (start before)
 
         after =
-            mapNoteStartX info pattern.timeSignature pattern.notes.after (start current)
+            mapNoteStartX info pattern pattern.notes.after (start current)
 
         notesWithStart =
             setPos before ++ setPosCurrent current ++ setPos after
@@ -522,8 +563,8 @@ renderNotes { info, pattern } =
     flatMap (renderNote info) notesWithStart
 
 
-getStart : ImgInfo -> Float -> List ( Note, ( Float, Float ) ) -> Float
-getStart info default notes =
+getStart : Float -> List ( Note, ( Float, Float ) ) -> Float
+getStart default notes =
     case List.head <| List.reverse notes of
         Nothing ->
             default
@@ -541,37 +582,54 @@ renderNote info ( note, isCurrent, pos ) =
 
             else
                 []
+
+        newPos =
+            { pos | x = pos.x + noteWidth / 2 }
     in
     case note of
         Note d ->
             case d of
                 Whole ->
-                    renderWhole attribs pos
+                    renderWhole attribs newPos
 
                 Half ->
-                    renderHalf attribs info pos
+                    renderHalf attribs info newPos
 
                 Quater ->
-                    renderQuater attribs info pos
+                    renderQuater attribs info newPos
+
+                Eighth ->
+                    renderEigth attribs info newPos
 
         Rest _ ->
             []
 
 
-mapNoteStartX : ImgInfo -> TimeSignature -> List Note -> Float -> List ( Note, ( Float, Float ) )
-mapNoteStartX info timeSig notes current =
+mapNoteStartX : ImgInfo -> Pattern -> List Note -> Float -> List ( Note, ( Float, Float ) )
+mapNoteStartX info ({ timeSignature } as pattern) notes current =
     case notes of
         [] ->
             []
 
         n :: ns ->
             let
-                dur =
-                    info.noteWidth
-                        * 2
-                        * getNoteDuration timeSig n
+                barWidth =
+                    getBarWidth pattern
+
+                beats =
+                    toFloat <| Tuple.first pattern.timeSignature
+
+                beatWidth =
+                    barWidth / beats
+
+                xOffset =
+                    beatWidth
+                        * getNoteDuration pattern.timeSignature n
+
+                d =
+                    debug "xOffset " xOffset
             in
-            ( n, ( current, current + dur ) ) :: mapNoteStartX info timeSig ns (current + dur)
+            ( n, ( current, current + xOffset ) ) :: mapNoteStartX info pattern ns (current + xOffset)
 
 
 getNoteDuration : TimeSignature -> Note -> Float
@@ -595,6 +653,9 @@ getDurationLength ( top, bot ) dur =
 
         Quater ->
             toFloat bot / 4
+
+        Eighth ->
+            toFloat bot / 8
 
 
 renderWhole : List (Attribute msg) -> Pos -> List (Svg msg)
@@ -644,17 +705,42 @@ renderQuater attribs info pos =
     ]
 
 
+
+-- CONSTANTS
+
+
+lineWidth : Float
+lineWidth =
+    4
+
+
+timeSigWidth : Float
+timeSigWidth =
+    60
+
+
+stemHeight : Float
+stemHeight =
+    44
+
+
+stemWidth : Float
+stemWidth =
+    7
+
+
+noteWidth : Float
+noteWidth =
+    35
+
+
 renderStem : List (Attribute msg) -> ImgInfo -> Pos -> Svg msg
 renderStem attribs info pos =
-    let
-        h =
-            44
-    in
     rect
-        ([ width (String.fromFloat info.lineWidth)
-         , height (String.fromFloat h)
-         , x (String.fromFloat (pos.x + 7))
-         , y (String.fromFloat (pos.y - h))
+        ([ width (String.fromFloat lineWidth)
+         , height (String.fromFloat stemHeight)
+         , x (String.fromFloat (pos.x + stemWidth))
+         , y (String.fromFloat (pos.y - stemHeight))
          ]
             ++ attribs
         )
@@ -689,6 +775,47 @@ renderHalf attrib info pos =
     renderQuater attrib info pos ++ [ inner ]
 
 
+renderEigth : List (Attribute msg) -> ImgInfo -> Pos -> List (Svg msg)
+renderEigth attrib info pos =
+    let
+        xP =
+            pos.x
+
+        yP =
+            pos.y
+
+        flag =
+            Svg.path
+                (attrib
+                    ++ [ SA.d <| flagPathString pos
+                       ]
+                )
+                []
+    in
+    renderQuater attrib info pos ++ [ flag ]
+
+
+flagPathString : Pos -> String
+flagPathString pos =
+    let
+        xP =
+            pos.x + lineWidth + stemWidth
+
+        yP =
+            pos.y - stemHeight
+
+        d =
+            Debug.log "Path pos" ( xP, yP )
+    in
+    "M "
+        ++ String.fromFloat xP
+        ++ " "
+        ++ String.fromFloat yP
+        ++ " c 0 10  10 12 10 26 "
+        ++ " c 0 5  0 5  -5 10 "
+        ++ " c 3 -5  5 -15 -5  -20 "
+
+
 rotate : Pos -> Float -> Svg msg -> Svg msg
 rotate pos deg el =
     let
@@ -704,3 +831,12 @@ rotate pos deg el =
                 ]
     in
     node "g" [ SA.transform rotString ] [ el ]
+
+
+
+-- Helper
+
+
+debug : String -> a -> a
+debug label a =
+    Debug.log label a
