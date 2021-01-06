@@ -15,6 +15,7 @@ import FontAwesome.Styles
 import Json.Decode as Decode
 import Layout.Helper as LH exposing (..)
 import Svg exposing (Svg)
+import SvgStrumming.StrummingRender as SR
 import SvgStrumming.SvgStrumming as Strumming
 import Task
 import Time
@@ -309,7 +310,7 @@ viewPlayAlong info =
     column []
         [ viewChords info
         , viewControls info
-        , Strumming.view [ centerX ] info.strumming
+        , SR.view [ centerX ] info.strumming
         , viewEditControls info
         ]
 

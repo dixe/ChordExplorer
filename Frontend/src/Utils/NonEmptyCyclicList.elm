@@ -1,4 +1,4 @@
-module Utils.NonEmptyCyclicList exposing (NonEmptyCyclicList, add, advanceToNew, cur, delete, getAll, init, left, map, next, right, updateCurrent)
+module Utils.NonEmptyCyclicList exposing (NonEmptyCyclicList, add, advanceToNew, cur, delete, getAll, init, left, map, mapWithCurrent, next, right, updateCurrent)
 
 
 type alias NonEmptyCyclicList a =
@@ -94,3 +94,25 @@ map f ({ before, current, after } as l) =
         List.map f
             after
     }
+
+
+type alias IsCurrent a =
+    { a | isCurrent : Bool }
+
+
+mapWithCurrent : (a -> IsCurrent b) -> NonEmptyCyclicList a -> List (IsCurrent b)
+mapWithCurrent f ({ before, current, after } as l) =
+    let
+        noteCur =
+            \x -> { x | isCurrent = False }
+
+        b =
+            List.map (\x -> noteCur <| f x) before
+
+        c =
+            f current
+
+        a =
+            List.map (\x -> noteCur <| f x) after
+    in
+    b ++ [ { c | isCurrent = True } ] ++ a

@@ -16,6 +16,20 @@ Two main functions
 Generate chord progressions by tag. Either random or given a key
 
 
+OR
+
+
+Make it a practice app
+Be able to define practice "pieces" (rythm and tabs/chord)
+
+
+Have users and be able to start and finish practices, and easily modify them
+store those in db with all info like
+* start
+* stop
+* order of pieces
+* time on each
+
 
 ## Backend haskell plus postgres?
 Store Chords with svg, name(s), tags, votes
