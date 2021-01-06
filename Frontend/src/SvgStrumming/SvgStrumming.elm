@@ -83,9 +83,6 @@ updateAndAdvance ({ pattern } as model) note =
 
                 newInfo =
                     createImgInfo newP
-
-                d =
-                    Debug.log "NewInfo" newInfo
             in
             { model | pattern = newP, info = newInfo }
 
@@ -195,9 +192,6 @@ getTotalBeats { timeSignature, notes } =
 
         rem =
             remainderBy beatsPrBar total
-
-        d =
-            Debug.log "totalBeats" (total + beatsPrBar - rem)
     in
     total + beatsPrBar - rem
 
@@ -216,9 +210,6 @@ createImgInfo pattern =
 
         imgHeight =
             100
-
-        d =
-            Debug.log "barWidth, ImgWidth" ( barsWidth, imgWidth )
     in
     { imgHeight = imgHeight
     , imgWidth = imgWidth
@@ -236,7 +227,7 @@ defaultPattern2 =
 
 defaultPattern : Pattern
 defaultPattern =
-    { notes = Cl.init (Note Eighth) [ Note Whole, Note Whole, Note Half, Note Half ]
+    { notes = Cl.init (Note Eighth) [ Note Quater, Note Whole, Note Whole, Note Half, Note Half ]
     , timeSignature = ( 4, 4 )
     , bpm = 70
     , ticks = 0
@@ -360,9 +351,6 @@ getBarWidth ({ timeSignature, notes } as pattern) =
     let
         beats =
             toFloat <| Tuple.first timeSignature
-
-        d =
-            Debug.log "Beats, notewidth" ( beats, noteWidth )
     in
     timeSigWidth + beats * 2 * noteWidth + lineWidth
 

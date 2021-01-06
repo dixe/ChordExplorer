@@ -1,6 +1,6 @@
 module SvgStrumming.StrummingRender exposing (view)
 
-import Element exposing (Element, column, html, text)
+import Element exposing (Element, column, html, text, wrappedRow)
 import Element.Input exposing (button)
 import Html as Html
 import Html.Attributes as HtmlAttributes
@@ -30,67 +30,72 @@ type alias RenderFunc msg =
 type alias RenderNote msg =
     { renderF : RenderFunc msg
     , isCurrent : Bool
+    , beatsDuration : Float
     }
 
 
 toRenderBars : Pattern -> List (RenderBar msg)
 toRenderBars { notes, timeSignature } =
+    toBars timeSignature 0 <| Cl.toListWithCurrent notes
+
+
+toBars : TimeSignature -> Float -> List ( Note, Bool ) -> List (RenderBar msg)
+toBars timeSignature initOverStep notes =
     let
-        beats =
-            4
+        ( next, overStep, remaining ) =
+            nextRenderBar timeSignature initOverStep notes
+
+        rest =
+            if remaining == [] then
+                []
+
+            else
+                toBars timeSignature overStep remaining
     in
-    { beats = beats
-    , notes = Cl.mapWithCurrent noteToRenderNote pattern.notes
-    , beatOffset = 0
-    }
+    next :: rest
 
 
-nextRenderBar : Pattern -> List Note -> ( RenderBar msg, Float, List Note )
-nextRenderBar { timeSignature } notes =
+nextRenderBar : TimeSignature -> Float -> List ( Note, Bool ) -> ( RenderBar msg, Float, List ( Note, Bool ) )
+nextRenderBar timeSignature initOverStep notes =
     let
         beatsInBar =
             toFloat <|
                 Tuple.first timeSignature
 
-        -- take notes until we are over duration
-        ( funs, taken, remaining ) =
+        ( rNotes, taken, remaining ) =
             takeNotesForBar timeSignature ( [], beatsInBar, notes )
-
-        -- calc how much we are over
-        -- create renderBar from notes
-        -- return renderBar, and overStep and remaining notes
     in
     ( { beats = beatsInBar
-      , notes = List.map (\x -> { renderF = x, isCurrent = False }) funs --TODO also keep track of current
-      , beatOffset = 0
+      , notes = rNotes
+      , beatOffset = initOverStep
       }
     , taken
     , remaining
     )
 
 
-takeNotesForBar : TimeSignature -> ( List (RenderFunc msg), Float, List Note ) -> ( List (RenderFunc msg), Float, List Note )
-takeNotesForBar ts ( funcs, beatsLeft, notes ) =
+takeNotesForBar : TimeSignature -> ( List (RenderNote msg), Float, List ( Note, Bool ) ) -> ( List (RenderNote msg), Float, List ( Note, Bool ) )
+takeNotesForBar ts ( rNotes, beatsLeft, notes ) =
     if beatsLeft > 0 then
         let
-            ( renderF, taken, remaining ) =
+            ( note, taken, remaining ) =
                 nextNote ts notes
         in
-        case renderF of
+        case note of
             Nothing ->
-                ( funcs, -beatsLeft, notes )
+                ( rNotes, -beatsLeft, notes )
 
-            Just f ->
-                takeNotesForBar ts ( funcs ++ [ f ], beatsLeft - taken, remaining )
+            Just n ->
+                takeNotesForBar ts ( rNotes ++ [ n ], beatsLeft - taken, remaining )
 
     else
-        ( funcs, -beatsLeft, notes )
+        ( rNotes, -beatsLeft, notes )
 
 
-nextNote : TimeSignature -> List Note -> ( Maybe (RenderFunc msg), Float, List Note )
+nextNote : TimeSignature -> List ( Note, Bool ) -> ( Maybe (RenderNote msg), Float, List ( Note, Bool ) )
 nextNote ts notes =
     case notes of
-        n :: ns ->
+        ( n, isCurrent ) :: ns ->
             let
                 f =
                     getRenderF n
@@ -98,17 +103,10 @@ nextNote ts notes =
                 duration =
                     getNoteDuration ts n
             in
-            ( Just f, duration, ns )
+            ( Just { renderF = f, isCurrent = isCurrent, beatsDuration = duration }, duration, ns )
 
         [] ->
             ( Nothing, 0, [] )
-
-
-noteToRenderNote : Note -> RenderNote msg
-noteToRenderNote note =
-    { renderF = getRenderF note
-    , isCurrent = False
-    }
 
 
 getRenderF : Note -> RenderFunc msg
@@ -139,89 +137,146 @@ getRenderF note =
 view : List (Element.Attribute msg) -> Model -> Element msg
 view att model =
     let
-        svgHtml : Svg msg
-        svgHtml =
-            renderPattern model
+        renderBars =
+            toRenderBars model.pattern
 
-        metronomeClickHtml =
-            Html.audio
-                [ HtmlAttributes.id "metronome-play"
-                , HtmlAttributes.src "click.mp3"
-                , HtmlAttributes.controls False
-                ]
+        new =
+            viewRenderBars model { x = 0, y = 0 } renderBars
+    in
+    column []
+        [ new, text "Old" ]
+
+
+viewRenderBars : Model -> Pos -> List (RenderBar msg) -> Element msg
+viewRenderBars ({ info } as model) initPos bars =
+    let
+        --render timeSig
+        ( svgList, endPos ) =
+            renderBarsToSvg model initPos bars
+
+        d =
+            debug "endPos" endPos
+
+        renderBox =
+            renderRythmBox <| posAddY endPos info.imgHeight
+
+        middleLine =
+            renderMiddleLine <| posAddY endPos info.imgHeight
+
+        svgWidth =
+            endPos.x
+    in
+    html <|
+        svg
+            [ width (String.fromFloat svgWidth)
+            , height (String.fromFloat info.imgHeight)
+            , viewBox ("0 0 " ++ String.fromFloat svgWidth ++ " " ++ String.fromFloat info.imgHeight)
+            ]
+            (middleLine
+                ++ svgList
+                ++ renderBox
+            )
+
+
+renderMiddleLine : Pos -> List (Svg msg)
+renderMiddleLine pos =
+    [ Svg.rect
+        [ width (String.fromFloat pos.x)
+        , height (String.fromFloat lineWidth)
+        , y (String.fromFloat (pos.y / 2))
+        , fill "gray"
+        ]
+        []
+    ]
+
+
+renderRythmBox : Pos -> List (Svg msg)
+renderRythmBox pos =
+    [ Svg.rect
+        [ width <| String.fromFloat pos.x
+        , height "1"
+        ]
+        []
+    , Svg.rect
+        [ width <| String.fromFloat pos.x
+        , height "1"
+        , y <| String.fromFloat (pos.y - 1)
+        ]
+        []
+    , Svg.rect
+        [ height <| String.fromFloat pos.y
+        , width "1"
+        ]
+        []
+    , Svg.rect
+        [ height <| String.fromFloat pos.y
+        , width "1"
+        , x <| String.fromFloat (pos.x - 1)
+        ]
+        []
+    ]
+
+
+renderBarsToSvg : Model -> Pos -> List (RenderBar msg) -> ( List (Svg msg), Pos )
+renderBarsToSvg model initPos bars =
+    case bars of
+        [] ->
+            ( [], initPos )
+
+        b :: bs ->
+            let
+                ( barLines, nextStart ) =
+                    renderSingleBarLines model.info initPos b.beats (bs == [])
+
+                ( notes, _ ) =
+                    renderNotes model (posAddX initPos (b.beatOffset * beatWidth + noteWidth)) b.notes
+
+                fullBar =
+                    barLines ++ notes
+            in
+            let
+                ( remBars, end ) =
+                    renderBarsToSvg model nextStart bs
+            in
+            ( fullBar ++ remBars, end )
+
+
+renderNotes : Model -> Pos -> List (RenderNote msg) -> ( List (Svg msg), Pos )
+renderNotes model pos notes =
+    case notes of
+        [] ->
+            ( [], pos )
+
+        n :: ns ->
+            let
+                ( noteSvg, nextStart ) =
+                    renderNote model pos n
+            in
+            let
+                ( remNotes, end ) =
+                    renderNotes model nextStart ns
+            in
+            ( noteSvg ++ remNotes, end )
+
+
+renderNote : Model -> Pos -> RenderNote msg -> ( List (Svg msg), Pos )
+renderNote { info } pos { renderF, isCurrent, beatsDuration } =
+    let
+        attribs =
+            if isCurrent then
+                [ SA.fill "blue" ]
+
+            else
                 []
 
-        elements =
-            [ html svgHtml, html metronomeClickHtml ]
+        svg =
+            renderF attribs info <| posAddY pos (info.imgHeight / 2)
     in
-    column att elements
+    ( svg, posAddX pos (beatWidth * beatsDuration) )
 
 
-renderPattern : Model -> Svg msg
-renderPattern ({ info, pattern } as model) =
-    svg
-        [ width (String.fromFloat info.imgWidth)
-        , height (String.fromFloat info.imgHeight)
-        , viewBox ("0 0 " ++ String.fromFloat info.imgWidth ++ " " ++ String.fromFloat info.imgHeight)
-        ]
-        (renderTimeSignature pattern.timeSignature
-            ++ renderBarLines info pattern
-            ++ renderMiddleLine info
-            ++ renderNotes model
-            ++ renderRythmBox info
-        )
-
-
-renderRythmBox : ImgInfo -> List (Svg msg)
-renderRythmBox info =
-    [ Svg.rect
-        [ width <| String.fromFloat info.imgWidth
-        , height "1"
-        ]
-        []
-    , Svg.rect
-        [ width <| String.fromFloat info.imgWidth
-        , height "1"
-        , y <| String.fromFloat (info.imgHeight - 1)
-        ]
-        []
-    , Svg.rect
-        [ height <| String.fromFloat info.imgHeight
-        , width "1"
-        ]
-        []
-    , Svg.rect
-        [ height <| String.fromFloat info.imgHeight
-        , width "1"
-        , x <| String.fromFloat (info.imgWidth - 1)
-        ]
-        []
-    ]
-
-
-renderTimeSignature : TimeSignature -> List (Svg msg)
-renderTimeSignature ( top, bot ) =
-    [ Svg.text_
-        [ x "20"
-        , y "45"
-        , SA.fontSize "40"
-        , SA.textAnchor "middle"
-        , SA.fontWeight "bold"
-        ]
-        [ Svg.text (String.fromInt top) ]
-    , Svg.text_
-        [ x "20"
-        , y "90"
-        , SA.fontSize "40"
-        , SA.textAnchor "middle"
-        , SA.fontWeight "bold"
-        ]
-        [ Svg.text (String.fromInt bot) ]
-    ]
-
-
-renderBarLines : ImgInfo -> Pattern -> List (Svg msg)
-renderBarLines info pattern =
+renderSingleBarLines : ImgInfo -> Pos -> Float -> Bool -> ( List (Svg msg), Pos )
+renderSingleBarLines info pos beats isLast =
     let
         line : Float -> Svg msg
         line xStart =
@@ -232,134 +287,29 @@ renderBarLines info pattern =
                 ]
                 []
 
-        bars =
-            getTotalBars pattern
-
         barWidth =
-            getBarWidth pattern
+            noteWidth + beatWidth * beats + lineWidth
 
-        linesStart =
-            List.map (\x -> timeSigWidth + x * barWidth) <|
-                List.map toFloat <|
-                    List.range 0 bars
+        lineStart =
+            line pos.x
 
-        d =
-            Debug.log "xStart , lineStart" ( timeSigWidth, linesStart )
-    in
-    List.map line linesStart
-
-
-renderMiddleLine : ImgInfo -> List (Svg msg)
-renderMiddleLine info =
-    [ Svg.rect
-        [ width (String.fromFloat info.imgWidth)
-        , height (String.fromFloat lineWidth)
-        , y (String.fromFloat (info.imgHeight / 2))
-        , fill "gray"
-        ]
-        []
-    ]
-
-
-renderNotes : Model -> List (Svg msg)
-renderNotes { info, pattern } =
-    let
-        -- get a list of all note to be shown, and map then with an X-position
-        pos : Pos
-        pos =
-            { x = 0, y = info.imgHeight / 2 + (lineWidth / 2) }
-
-        setPos =
-            List.map (\( note, ( xS, end ) ) -> ( note, False, { pos | x = xS } ))
-
-        setPosCurrent =
-            List.map (\( note, ( xS, end ) ) -> ( note, True, { pos | x = xS } ))
-
-        start =
-            getStart timeSigWidth
-
-        before =
-            mapNoteStartX info pattern pattern.notes.before (start [])
-
-        current =
-            mapNoteStartX info pattern [ pattern.notes.current ] (start before)
-
-        after =
-            mapNoteStartX info pattern pattern.notes.after (start current)
-
-        notesWithStart =
-            setPos before ++ setPosCurrent current ++ setPos after
-    in
-    flatMap (renderNote info) notesWithStart
-
-
-getStart : Float -> List ( Note, ( Float, Float ) ) -> Float
-getStart default notes =
-    case List.head <| List.reverse notes of
-        Nothing ->
-            default
-
-        Just ( _, ( _, end ) ) ->
-            end
-
-
-renderNote : ImgInfo -> ( Note, Bool, Pos ) -> List (Svg msg)
-renderNote info ( note, isCurrent, pos ) =
-    let
-        attribs =
-            if isCurrent then
-                [ SA.fill "blue" ]
+        lineEnd =
+            if isLast then
+                [ line <| pos.x + barWidth - lineWidth
+                ]
 
             else
                 []
 
-        newPos =
-            { pos | x = pos.x + noteWidth / 2 }
+        d =
+            debug "remBars" ( pos, barWidth )
     in
-    case note of
-        Note d ->
-            case d of
-                Whole ->
-                    renderWhole attribs info newPos
-
-                Half ->
-                    renderHalf attribs info newPos
-
-                Quater ->
-                    renderQuater attribs info newPos
-
-                Eighth ->
-                    renderEigth attribs info newPos
-
-        Rest _ ->
-            []
+    ( [ lineStart ] ++ lineEnd, posAdd pos { x = barWidth, y = 0 } )
 
 
-mapNoteStartX : ImgInfo -> Pattern -> List Note -> Float -> List ( Note, ( Float, Float ) )
-mapNoteStartX info ({ timeSignature } as pattern) notes current =
-    case notes of
-        [] ->
-            []
-
-        n :: ns ->
-            let
-                barWidth =
-                    getBarWidth pattern
-
-                beats =
-                    toFloat <| Tuple.first pattern.timeSignature
-
-                beatWidth =
-                    barWidth / beats
-
-                xOffset =
-                    beatWidth
-                        * getNoteDuration pattern.timeSignature n
-
-                d =
-                    debug "xOffset " xOffset
-            in
-            ( n, ( current, current + xOffset ) ) :: mapNoteStartX info pattern ns (current + xOffset)
+beatWidth : Float
+beatWidth =
+    noteWidth * 2
 
 
 renderWhole : List (Attribute msg) -> ImgInfo -> Pos -> List (Svg msg)
@@ -478,9 +428,6 @@ flagPathString pos =
 
         yP =
             pos.y - stemHeight
-
-        d =
-            Debug.log "Path pos" ( xP, yP )
     in
     "M "
         ++ String.fromFloat xP
@@ -525,3 +472,18 @@ flatMap f l =
 debug : String -> a -> a
 debug label a =
     Debug.log label a
+
+
+posAdd : Pos -> Pos -> Pos
+posAdd p1 p2 =
+    { x = p1.x + p2.x, y = p1.y + p2.y }
+
+
+posAddY : Pos -> Float -> Pos
+posAddY p1 y =
+    { p1 | y = p1.y + y }
+
+
+posAddX : Pos -> Float -> Pos
+posAddX p1 x =
+    { p1 | x = p1.x + x }
