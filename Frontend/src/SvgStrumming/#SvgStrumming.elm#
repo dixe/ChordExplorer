@@ -121,7 +121,7 @@ updateAndAdvance ({ pattern, editorState } as model) action =
                     { pattern | notes = Cl.advanceToNew (editorState.editType Quater) pattern.notes }
 
                 newInfo =
-                    createImgInfo newP
+                    createImgInfo newPs
             in
             { model | pattern = newP, info = newInfo }
 

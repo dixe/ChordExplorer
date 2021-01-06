@@ -31,6 +31,8 @@ type Msg
     | Edit
     | FinishEdit
     | KeyPressed Strumming.EditAction
+    | KeyDown Strumming.EditAction
+    | KeyUp Strumming.EditAction
 
 
 type Model
@@ -202,13 +204,19 @@ update msg model =
             ( mapPlayInfo (\info -> { info | strumming = Strumming.updateBpm info.strumming bpm }) model, Cmd.none )
 
         Edit ->
-            ( mapPlayInfo (\info -> { info | state = Editing }) model, Cmd.none )
+            ( mapPlayInfo (\info -> { info | state = Editing, strumming = Strumming.setEdit info.strumming }) model, Cmd.none )
 
         FinishEdit ->
-            ( mapPlayInfo (\info -> { info | state = Stopped }) model, Cmd.none )
+            ( mapPlayInfo (\info -> { info | state = Stopped, strumming = Strumming.finishEdit info.strumming }) model, Cmd.none )
 
         KeyPressed note ->
             ( mapPlayInfo (\info -> { info | strumming = Strumming.updateAndAdvance info.strumming note }) model, Cmd.none )
+
+        KeyDown note ->
+            ( mapPlayInfo (\info -> { info | strumming = Strumming.updateCommandKey info.strumming note }) model, Cmd.none )
+
+        KeyUp note ->
+            ( mapPlayInfo (\info -> { info | strumming = Strumming.updateCommandKey info.strumming note }) model, Cmd.none )
 
 
 
@@ -317,6 +325,25 @@ viewPlayAlong info =
 
 viewEditControls : PlayInfo -> Element Msg
 viewEditControls info =
+    let
+        editFinish =
+            viewEditFinish info
+
+        editType =
+            viewEditType info
+
+        inEditor =
+            if info.state == Editing then
+                [ editType ]
+
+            else
+                []
+    in
+    Element.row [ spacing 5 ] ([ editFinish ] ++ inEditor)
+
+
+viewEditFinish : PlayInfo -> Element Msg
+viewEditFinish info =
     case info.state of
         Editing ->
             Element.row [ Element.paddingXY 0 10 ]
@@ -327,6 +354,11 @@ viewEditControls info =
             Element.row [ Element.paddingXY 0 10 ]
                 [ Input.button [] { label = Element.text "Edit", onPress = Just Edit }
                 ]
+
+
+viewEditType : PlayInfo -> Element Msg
+viewEditType { strumming, state } =
+    Element.text <| Strumming.editStateLabel strumming
 
 
 viewChords : PlayInfo -> Element Msg

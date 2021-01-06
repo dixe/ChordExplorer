@@ -127,7 +127,7 @@ getRenderF note =
                     renderEigth
 
         Rest _ ->
-            \_ _ _ -> []
+            renderRest
 
 
 
@@ -142,6 +142,9 @@ view att model =
 
         new =
             viewRenderBars model { x = 0, y = 0 } renderBars
+
+        d =
+            debug "model" (Cl.getAll model.pattern.notes)
     in
     column []
         [ new, text "Old" ]
@@ -310,6 +313,20 @@ renderSingleBarLines info pos beats isLast =
 beatWidth : Float
 beatWidth =
     noteWidth * 2
+
+
+renderRest : List (Attribute msg) -> ImgInfo -> Pos -> List (Svg msg)
+renderRest attribs info pos =
+    [ rect
+        ([ width (String.fromFloat 30)
+         , height (String.fromFloat 20)
+         , x (String.fromFloat pos.x)
+         , y (String.fromFloat (pos.y - 10))
+         ]
+            ++ attribs
+        )
+        []
+    ]
 
 
 renderWhole : List (Attribute msg) -> ImgInfo -> Pos -> List (Svg msg)

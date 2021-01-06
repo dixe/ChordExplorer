@@ -1,4 +1,4 @@
-module Utils.NonEmptyCyclicList exposing (NonEmptyCyclicList, add, advanceToNew, cur, delete, getAll, init, left, map, mapWithCurrent, next, right, toList, toListWithCurrent, updateCurrent)
+module Utils.NonEmptyCyclicList exposing (NonEmptyCyclicList, add, advanceToNew, cur, delete, getAll, init, left, map, mapWithCurrent, next, right, setCurrent, toList, toListWithCurrent, updateCurrent)
 
 
 type alias NonEmptyCyclicList a =
@@ -8,8 +8,13 @@ type alias NonEmptyCyclicList a =
     }
 
 
-updateCurrent : a -> NonEmptyCyclicList a -> NonEmptyCyclicList a
-updateCurrent a l =
+updateCurrent : (a -> a) -> NonEmptyCyclicList a -> NonEmptyCyclicList a
+updateCurrent f l =
+    { l | current = f l.current }
+
+
+setCurrent : a -> NonEmptyCyclicList a -> NonEmptyCyclicList a
+setCurrent a l =
     { l | current = a }
 
 
@@ -30,7 +35,7 @@ left ({ before, current, after } as l) =
                     l
 
                 n :: ns ->
-                    { l | before = current :: ns, current = n, after = [] }
+                    { l | before = current :: List.reverse ns, current = n, after = [] }
 
 
 right : NonEmptyCyclicList a -> NonEmptyCyclicList a
