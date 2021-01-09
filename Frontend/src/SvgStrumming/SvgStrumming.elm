@@ -1,11 +1,11 @@
-port module SvgStrumming.SvgStrumming exposing (Duration(..), EditAction, ImgInfo, Model, Note(..), Pattern, Pos, TimeSignature, editStateLabel, finishEdit, getBarWidth, getNoteDuration, getTotalBars, initModel, lineWidth, noteDecoder, noteWidth, setEdit, stemHeight, stemWidth, tick, tickTime, timeSigWidth, updateAndAdvance, updateBpm, updateCommandKey)
+port module SvgStrumming.SvgStrumming exposing (Duration(..), ImgInfo, KeyboardAction, Model, Note(..), Pattern, Pos, TimeSignature, editStateLabel, finishEdit, getBarWidth, getNoteDuration, getTotalBars, initModel, lineWidth, noteDecoderEditing, noteDecoderPlaying, noteWidth, setEdit, stemHeight, stemWidth, tick, tickTime, timeSigWidth, updateAndAdvance, updateBpm, updateCommandKey)
 
 import Json.Decode as Decode
 import Json.Encode as Encode
 import Utils.NonEmptyCyclicList as Cl
 
 
-port play : Encode.Value -> Cmd msg
+port playPort : Encode.Value -> Cmd msg
 
 
 type Note
@@ -35,6 +35,16 @@ type Direction
     | Right
 
 
+type KeyboardAction
+    = Edit EditAction
+    | Playing PlayingAction
+
+
+type PlayingAction
+    = StartEdit
+    | StartStop
+
+
 type EditAction
     = Change Duration
     | Add
@@ -53,7 +63,8 @@ type alias Pattern =
     { notes : Cl.NonEmptyCyclicList Note
     , timeSignature : TimeSignature
     , bpm : Int
-    , ticks : Int
+    , noteTicks : Int
+    , bpmTicks : Int
     }
 
 
@@ -102,15 +113,42 @@ finishEdit model =
     model
 
 
-updateCommandKey : Model -> EditAction -> Model
+updateCommandKey : Model -> KeyboardAction -> Model
 updateCommandKey ({ pattern, editorState } as model) action =
     case action of
         _ ->
             model
 
 
-updateAndAdvance : Model -> EditAction -> Model
-updateAndAdvance ({ pattern, editorState } as model) action =
+
+{-
+   updateAndAdvandeEditing : Model -> EditAction -> Model
+   updateAndAdvandeEditing ({ pattern, editorState } as model) action =
+-}
+
+
+updateAndAdvance : Model -> KeyboardAction -> Model
+updateAndAdvance model action =
+    case action of
+        Edit edit ->
+            updateAndAdvanceEdit model edit
+
+        Playing play ->
+            updateAndAdvancePlaying model play
+
+
+updateAndAdvancePlaying : Model -> PlayingAction -> Model
+updateAndAdvancePlaying model action =
+    case action of
+        StartStop ->
+            model
+
+        StartEdit ->
+            model
+
+
+updateAndAdvanceEdit : Model -> EditAction -> Model
+updateAndAdvanceEdit ({ pattern, editorState } as model) action =
     case action of
         Change d ->
             { model | pattern = { pattern | notes = Cl.next <| Cl.updateCurrent (updateNoteDuration d) pattern.notes } }
@@ -190,6 +228,9 @@ tickTime { pattern } =
 
         minBeatValue =
             getDurationLength pattern.timeSignature lowest
+
+        d =
+            Debug.log "minBeatValue" ( minBeatValue, lowest )
     in
     beatLength * minBeatValue
 
@@ -239,7 +280,7 @@ pickLowest a b =
             b
 
         ( _, Quater ) ->
-            b
+            a
 
         ( Eighth, _ ) ->
             b
@@ -293,28 +334,24 @@ createImgInfo pattern =
     }
 
 
-defaultPattern : Pattern
-defaultPattern =
-    { notes = Cl.init (Note Eighth) [ Note Quater, Rest Quater, Note Whole, Note Half, Note Half ]
+defaultPattern1 : Pattern
+defaultPattern1 =
+    { notes = Cl.init (Note Eighth) [ Note Eighth, Note Quater, Note Whole, Note Half, Note Half, Note Quater ]
     , timeSignature = ( 4, 4 )
     , bpm = 70
-    , ticks = 0
+    , noteTicks = 0
+    , bpmTicks = 0
     }
 
 
-
--- UPDATE
-{-
-
-   update : Msg -> Model -> ( Model, Cmd Msg )
-   update msg model =
-       case msg of
-           Edit ->
-               ( { model | state = Editing }, Cmd.none )
-
-           FinishEdit ->
-               ( { model | state = Playing }, Cmd.none )
--}
+defaultPattern : Pattern
+defaultPattern =
+    { notes = Cl.init (Note Eighth) [ Note Eighth, Note Quater, Note Quater, Note Whole, Note Half, Note Half ]
+    , timeSignature = ( 4, 4 )
+    , bpm = 70
+    , noteTicks = 0
+    , bpmTicks = 0
+    }
 
 
 updateBpm : Model -> Int -> Model
@@ -327,13 +364,25 @@ updateBpm ({ pattern } as model) bpm =
 
 
 tick : Model -> ( Model, Bool, Cmd msg )
-tick ({ pattern } as model) =
+tick model =
+    let
+        ( updateNotes, movedNext ) =
+            tickNotes model
+
+        ( newModel, cmd ) =
+            tickMetronome updateNotes
+    in
+    ( newModel, movedNext, cmd )
+
+
+tickNotes : Model -> ( Model, Bool )
+tickNotes ({ pattern } as model) =
     let
         time =
             tickTime model
 
         ticks =
-            pattern.ticks + 1
+            pattern.noteTicks + 1
 
         passed =
             toFloat ticks * time
@@ -353,19 +402,40 @@ tick ({ pattern } as model) =
 
         finalPattern =
             if moveNextNote then
-                { nextPattern | ticks = 0 }
+                { nextPattern | noteTicks = 0 }
 
             else
-                { pattern | ticks = ticks }
+                { pattern | noteTicks = ticks }
+    in
+    ( { model | pattern = finalPattern }, moveNextNote )
+
+
+tickMetronome : Model -> ( Model, Cmd msg )
+tickMetronome ({ pattern } as model) =
+    let
+        time =
+            tickTime model
+
+        ticks =
+            pattern.bpmTicks + 1
+
+        passed =
+            toFloat ticks * time
+
+        noteTime =
+            getNoteDuration pattern.timeSignature (Note Quater)
+
+        playNote =
+            passed >= noteTime
 
         cmd =
-            if moveNextNote then
-                play (Encode.bool moveNextNote)
+            if playNote then
+                playPort (Encode.bool playNote)
 
             else
                 Cmd.none
     in
-    ( { model | pattern = finalPattern }, moveNextNote, cmd )
+    ( model, cmd )
 
 
 noteTotalTime : Pattern -> Float
@@ -427,47 +497,55 @@ getBarWidth ({ timeSignature, notes } as pattern) =
 -- SUBSCRIPTION DECODERS
 
 
-noteDecoder : Decode.Decoder EditAction
-noteDecoder =
+noteDecoderPlaying : Decode.Decoder KeyboardAction
+noteDecoderPlaying =
     Decode.map toEditAction (Decode.field "key" Decode.string)
 
 
-toEditAction : String -> EditAction
+noteDecoderEditing : Decode.Decoder KeyboardAction
+noteDecoderEditing =
+    Decode.map toEditAction (Decode.field "key" Decode.string)
+
+
+toEditAction : String -> KeyboardAction
 toEditAction string =
     let
         d =
             Debug.log "keyString " string
+
+        action =
+            case string of
+                "q" ->
+                    Change <| Quater
+
+                "w" ->
+                    Change <| Whole
+
+                "h" ->
+                    Change <| Half
+
+                "e" ->
+                    Change <| Eighth
+
+                "n" ->
+                    Add
+
+                "d" ->
+                    Delete
+
+                "r" ->
+                    SwitchRest
+
+                "ArrowLeft" ->
+                    Move Left
+
+                "ArrowRight" ->
+                    Move Right
+
+                _ ->
+                    None
     in
-    case string of
-        "q" ->
-            Change <| Quater
-
-        "w" ->
-            Change <| Whole
-
-        "h" ->
-            Change <| Half
-
-        "e" ->
-            Change <| Eighth
-
-        "n" ->
-            Add
-
-        "d" ->
-            Delete
-
-        "r" ->
-            SwitchRest
-
-        "ArrowLeft" ->
-            Move Left
-
-        "ArrowRight" ->
-            Move Right
-
-        _ ->
-            None
+    Edit action
 
 
 

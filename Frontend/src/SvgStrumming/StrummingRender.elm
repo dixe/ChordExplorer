@@ -63,7 +63,7 @@ nextRenderBar timeSignature initOverStep notes =
                 Tuple.first timeSignature
 
         ( rNotes, taken, remaining ) =
-            takeNotesForBar timeSignature ( [], beatsInBar, notes )
+            takeNotesForBar timeSignature ( [], beatsInBar - initOverStep, notes )
     in
     ( { beats = beatsInBar
       , notes = rNotes
@@ -83,7 +83,7 @@ takeNotesForBar ts ( rNotes, beatsLeft, notes ) =
         in
         case note of
             Nothing ->
-                ( rNotes, -beatsLeft, notes )
+                ( rNotes, -beatsLeft, remaining )
 
             Just n ->
                 takeNotesForBar ts ( rNotes ++ [ n ], beatsLeft - taken, remaining )
@@ -137,17 +137,23 @@ getRenderF note =
 view : List (Element.Attribute msg) -> Model -> Element msg
 view att model =
     let
+        metronomeClickHtml =
+            html <|
+                Html.audio
+                    [ HtmlAttributes.id "metronome-play"
+                    , HtmlAttributes.src "click.mp3"
+                    , HtmlAttributes.controls False
+                    ]
+                    []
+
         renderBars =
             toRenderBars model.pattern
 
         new =
             viewRenderBars model { x = 0, y = 0 } renderBars
-
-        d =
-            debug "model" (Cl.getAll model.pattern.notes)
     in
     column []
-        [ new, text "Old" ]
+        [ metronomeClickHtml, new, text "Old" ]
 
 
 viewRenderBars : Model -> Pos -> List (RenderBar msg) -> Element msg
@@ -156,9 +162,6 @@ viewRenderBars ({ info } as model) initPos bars =
         --render timeSig
         ( svgList, endPos ) =
             renderBarsToSvg model initPos bars
-
-        d =
-            debug "endPos" endPos
 
         renderBox =
             renderRythmBox <| posAddY endPos info.imgHeight
@@ -303,9 +306,6 @@ renderSingleBarLines info pos beats isLast =
 
             else
                 []
-
-        d =
-            debug "remBars" ( pos, barWidth )
     in
     ( [ lineStart ] ++ lineEnd, posAdd pos { x = barWidth, y = 0 } )
 

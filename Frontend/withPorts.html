@@ -15,7 +15,7 @@
         node: document.getElementById('elm')
       });
 
-        app.ports.play.subscribe(function (data) {
+        app.ports.playPort.subscribe(function (data) {
             var x = document.getElementById("metronome-play");
             console.log(x)
           x.play();

@@ -30,9 +30,9 @@ type Msg
     | UpdateBpm Int
     | Edit
     | FinishEdit
-    | KeyPressed Strumming.EditAction
-    | KeyDown Strumming.EditAction
-    | KeyUp Strumming.EditAction
+    | KeyPressed Strumming.KeyboardAction
+    | KeyDown Strumming.KeyboardAction
+    | KeyUp Strumming.KeyboardAction
 
 
 type Model
@@ -289,24 +289,39 @@ subscriptions : Model -> Sub Msg
 subscriptions model =
     case model of
         PlayAlong info ->
+            let
+                keyboardInputs =
+                    Browser.Events.onKeyUp <| keyDecoder info
+            in
             case info.state of
                 Playing ->
                     -- Maybe put tickTime into model
-                    Time.every (Strumming.tickTime info.strumming) (\_ -> Tick)
+                    Sub.batch
+                        [ Time.every (Strumming.tickTime info.strumming) (\_ -> Tick)
+                        , keyboardInputs
+                        ]
 
                 Stopped ->
-                    Sub.none
+                    keyboardInputs
 
                 Editing ->
-                    Browser.Events.onKeyUp keyDecoder
+                    keyboardInputs
 
         _ ->
             Sub.none
 
 
-keyDecoder : Decode.Decoder Msg
-keyDecoder =
-    Decode.map KeyPressed Strumming.noteDecoder
+keyDecoder : PlayInfo -> Decode.Decoder Msg
+keyDecoder info =
+    case info.state of
+        Playing ->
+            Decode.map KeyPressed Strumming.noteDecoderEditing
+
+        Editing ->
+            Decode.map KeyPressed Strumming.noteDecoderPlaying
+
+        Stopped ->
+            Decode.fail ""
 
 
 
@@ -316,8 +331,8 @@ keyDecoder =
 viewPlayAlong : PlayInfo -> Element Msg
 viewPlayAlong info =
     column []
-        [ viewChords info
-        , viewControls info
+        [ -- viewChords info
+          viewControls info
         , SR.view [ centerX ] info.strumming
         , viewEditControls info
         ]
