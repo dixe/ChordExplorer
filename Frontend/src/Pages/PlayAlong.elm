@@ -30,9 +30,19 @@ type Msg
     | UpdateBpm Int
     | Edit
     | FinishEdit
-    | KeyPressed Strumming.KeyboardAction
-    | KeyDown Strumming.KeyboardAction
-    | KeyUp Strumming.KeyboardAction
+    | KeyPressed KeyboardAction
+    | KeyDown KeyboardAction
+    | KeyUp KeyboardAction
+
+
+type KeyboardAction
+    = EditKeyPress Strumming.EditAction
+    | PlayingKeyPress PlayingAction
+
+
+type PlayingAction
+    = StartEdit
+    | StartStop
 
 
 type Model
@@ -209,17 +219,44 @@ update msg model =
         FinishEdit ->
             ( mapPlayInfo (\info -> { info | state = Stopped, strumming = Strumming.finishEdit info.strumming }) model, Cmd.none )
 
-        KeyPressed note ->
-            ( mapPlayInfo (\info -> { info | strumming = Strumming.updateAndAdvance info.strumming note }) model, Cmd.none )
+        KeyPressed action ->
+            handelKeyboard model action
 
-        KeyDown note ->
-            ( mapPlayInfo (\info -> { info | strumming = Strumming.updateCommandKey info.strumming note }) model, Cmd.none )
+        --                ( mapPlayInfo (\info -> { info | strumming = Strumming.updateAndAdvance info.strumming note }) model, Cmd.none )
+        KeyDown action ->
+            handelKeyboard model action
 
-        KeyUp note ->
-            ( mapPlayInfo (\info -> { info | strumming = Strumming.updateCommandKey info.strumming note }) model, Cmd.none )
+        --( mapPlayInfo (\info -> { info | strumming = Strumming.updateCommandKey info.strumming note }) model, Cmd.none )
+        KeyUp action ->
+            handelKeyboard model action
 
 
 
+--( mapPlayInfo (\info -> { info | strumming = Strumming.updateCommandKey info.strumming note }) model, Cmd.none )
+
+
+handelKeyboard : Model -> KeyboardAction -> ( Model, Cmd msg )
+handelKeyboard model action =
+    case action of
+        EditKeyPress a ->
+            ( mapPlayInfo (\info -> { info | strumming = Strumming.updateAndAdvance info.strumming a }) model, Cmd.none )
+
+        PlayingKeyPress a ->
+            ( model, Cmd.none )
+
+
+
+{-
+   case model of
+       PlayAlong info ->
+           case action of
+               EditKeyPress a ->
+                   ( mapPlayInfo (\i -> { i | strumming = Strumming.updateAndAdvance info.strumming note }) model, Cmd.none )
+
+       _ ->
+           model
+
+-}
 -- TODO stop ticking when no chords loaded
 
 
@@ -315,13 +352,13 @@ keyDecoder : PlayInfo -> Decode.Decoder Msg
 keyDecoder info =
     case info.state of
         Playing ->
-            Decode.map KeyPressed Strumming.noteDecoderEditing
+            Decode.fail "No keyboardMappings for playing"
 
         Editing ->
-            Decode.map KeyPressed Strumming.noteDecoderPlaying
+            Decode.map (\x -> KeyPressed (EditKeyPress x)) Strumming.noteDecoderEditing
 
         Stopped ->
-            Decode.fail ""
+            Decode.fail "No keyboard mappings for stopped"
 
 
 

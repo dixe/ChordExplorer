@@ -1,4 +1,4 @@
-port module SvgStrumming.SvgStrumming exposing (Duration(..), ImgInfo, KeyboardAction, Model, Note(..), Pattern, Pos, TimeSignature, editStateLabel, finishEdit, getBarWidth, getNoteDuration, getTotalBars, initModel, lineWidth, noteDecoderEditing, noteDecoderPlaying, noteWidth, setEdit, stemHeight, stemWidth, tick, tickTime, timeSigWidth, updateAndAdvance, updateBpm, updateCommandKey)
+port module SvgStrumming.SvgStrumming exposing (Duration(..), EditAction, ImgInfo, Model, Note(..), Pattern, Pos, TimeSignature, editStateLabel, finishEdit, getBarWidth, getNoteDuration, getTotalBars, initModel, lineWidth, noteDecoderEditing, noteWidth, setEdit, stemHeight, stemWidth, tick, tickTime, timeSigWidth, updateAndAdvance, updateBpm, updateCommandKey)
 
 import Json.Decode as Decode
 import Json.Encode as Encode
@@ -33,16 +33,6 @@ type alias ImgInfo =
 type Direction
     = Left
     | Right
-
-
-type KeyboardAction
-    = Edit EditAction
-    | Playing PlayingAction
-
-
-type PlayingAction
-    = StartEdit
-    | StartStop
 
 
 type EditAction
@@ -113,7 +103,7 @@ finishEdit model =
     model
 
 
-updateCommandKey : Model -> KeyboardAction -> Model
+updateCommandKey : Model -> EditAction -> Model
 updateCommandKey ({ pattern, editorState } as model) action =
     case action of
         _ ->
@@ -127,28 +117,8 @@ updateCommandKey ({ pattern, editorState } as model) action =
 -}
 
 
-updateAndAdvance : Model -> KeyboardAction -> Model
-updateAndAdvance model action =
-    case action of
-        Edit edit ->
-            updateAndAdvanceEdit model edit
-
-        Playing play ->
-            updateAndAdvancePlaying model play
-
-
-updateAndAdvancePlaying : Model -> PlayingAction -> Model
-updateAndAdvancePlaying model action =
-    case action of
-        StartStop ->
-            model
-
-        StartEdit ->
-            model
-
-
-updateAndAdvanceEdit : Model -> EditAction -> Model
-updateAndAdvanceEdit ({ pattern, editorState } as model) action =
+updateAndAdvance : Model -> EditAction -> Model
+updateAndAdvance ({ pattern, editorState } as model) action =
     case action of
         Change d ->
             { model | pattern = { pattern | notes = Cl.next <| Cl.updateCurrent (updateNoteDuration d) pattern.notes } }
@@ -497,55 +467,47 @@ getBarWidth ({ timeSignature, notes } as pattern) =
 -- SUBSCRIPTION DECODERS
 
 
-noteDecoderPlaying : Decode.Decoder KeyboardAction
-noteDecoderPlaying =
-    Decode.map toEditAction (Decode.field "key" Decode.string)
-
-
-noteDecoderEditing : Decode.Decoder KeyboardAction
+noteDecoderEditing : Decode.Decoder EditAction
 noteDecoderEditing =
     Decode.map toEditAction (Decode.field "key" Decode.string)
 
 
-toEditAction : String -> KeyboardAction
+toEditAction : String -> EditAction
 toEditAction string =
     let
         d =
             Debug.log "keyString " string
-
-        action =
-            case string of
-                "q" ->
-                    Change <| Quater
-
-                "w" ->
-                    Change <| Whole
-
-                "h" ->
-                    Change <| Half
-
-                "e" ->
-                    Change <| Eighth
-
-                "n" ->
-                    Add
-
-                "d" ->
-                    Delete
-
-                "r" ->
-                    SwitchRest
-
-                "ArrowLeft" ->
-                    Move Left
-
-                "ArrowRight" ->
-                    Move Right
-
-                _ ->
-                    None
     in
-    Edit action
+    case string of
+        "q" ->
+            Change <| Quater
+
+        "w" ->
+            Change <| Whole
+
+        "h" ->
+            Change <| Half
+
+        "e" ->
+            Change <| Eighth
+
+        "n" ->
+            Add
+
+        "d" ->
+            Delete
+
+        "r" ->
+            SwitchRest
+
+        "ArrowLeft" ->
+            Move Left
+
+        "ArrowRight" ->
+            Move Right
+
+        _ ->
+            None
 
 
 
