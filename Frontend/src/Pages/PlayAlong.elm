@@ -1,6 +1,7 @@
 module Pages.PlayAlong exposing (ChordBase, Model, Msg, initModel, initMsg, page, subscriptions, toChord, update)
 
 import Api.Api exposing (ApiChord(..), loadChords)
+import Browser.Events
 import Dict exposing (Dict)
 import Element exposing (..)
 import Element.Background as Background
@@ -11,9 +12,11 @@ import Element.Input as Input
 import FontAwesome.Icon as Icon
 import FontAwesome.Solid as IconSolid
 import FontAwesome.Styles
+import Json.Decode as Decode
 import Layout.Helper as LH exposing (..)
 import Svg exposing (Svg)
-import SvgRythm.SvgRythm as SR
+import SvgStrumming.StrummingRender as SR
+import SvgStrumming.SvgStrumming as Strumming
 import Task
 import Time
 import Utils.NonEmptyCyclicList as Cl
@@ -27,6 +30,21 @@ type Msg
     | Tick
     | Loaded (Result String (List (ApiChord Msg)))
     | UpdateBpm Int
+    | Edit
+    | FinishEdit
+    | KeyPressed KeyboardAction
+    | KeyDown KeyboardAction
+    | KeyUp KeyboardAction
+
+
+type KeyboardAction
+    = EditKeyPress Strumming.EditAction
+    | PlayingKeyPress PlayingAction
+
+
+type PlayingAction
+    = StartEdit
+    | StartStop
 
 
 type Model
@@ -38,14 +56,15 @@ type Model
 type alias PlayInfo =
     { chords : Cl.NonEmptyCyclicList (Chord Msg)
     , state : State
-    , strumming : SR.Model
-    , rythm : Rythm.Rythm
+    , strumming : Strumming.Model
+    , rythm : Strumming.Rythm
     }
 
 
 type State
     = Playing
     | Stopped
+    | Editing
 
 
 type alias ChordBase msg =
@@ -194,8 +213,50 @@ update msg model =
         UpdateBpm bpm ->
             ( mapPlayInfo (\info -> { info | rythm = Rythm.updateBpm info.rythm bpm }) model, Cmd.none )
 
+        Edit ->
+            ( mapPlayInfo (\info -> { info | state = Editing, strumming = Strumming.setEdit info.strumming }) model, Cmd.none )
+
+        FinishEdit ->
+            ( mapPlayInfo (\info -> { info | state = Stopped, strumming = Strumming.finishEdit info.strumming }) model, Cmd.none )
+
+        KeyPressed action ->
+            handelKeyboard model action
+
+        --                ( mapPlayInfo (\info -> { info | strumming = Strumming.updateAndAdvance info.strumming note }) model, Cmd.none )
+        KeyDown action ->
+            handelKeyboard model action
+
+        --( mapPlayInfo (\info -> { info | strumming = Strumming.updateCommandKey info.strumming note }) model, Cmd.none )
+        KeyUp action ->
+            handelKeyboard model action
 
 
+
+--( mapPlayInfo (\info -> { info | strumming = Strumming.updateCommandKey info.strumming note }) model, Cmd.none )
+
+
+handelKeyboard : Model -> KeyboardAction -> ( Model, Cmd msg )
+handelKeyboard model action =
+    case action of
+        EditKeyPress a ->
+            ( mapPlayInfo (\info -> { info | strumming = Strumming.updateAndAdvance info.strumming a }) model, Cmd.none )
+
+        PlayingKeyPress a ->
+            ( model, Cmd.none )
+
+
+
+{-
+   case model of
+       PlayAlong info ->
+           case action of
+               EditKeyPress a ->
+                   ( mapPlayInfo (\i -> { i | strumming = Strumming.updateAndAdvance info.strumming note }) model, Cmd.none )
+
+       _ ->
+           model
+
+-}
 -- TODO stop ticking when no chords loaded
 
 
@@ -243,16 +304,39 @@ subscriptions : Model -> Sub Msg
 subscriptions model =
     case model of
         PlayAlong info ->
+            let
+                keyboardInputs =
+                    Browser.Events.onKeyUp <| keyDecoder info
+            in
             case info.state of
                 Playing ->
                     -- Maybe put tickTime into model
-                    Time.every (Rythm.tickTime info.rythm) (\_ -> Tick)
+                    Sub.batch
+                        [ Time.every (Strumming.tickTime info.strumming) (\_ -> Tick)
+                        , keyboardInputs
+                        ]
 
                 Stopped ->
-                    Sub.none
+                    keyboardInputs
+
+                Editing ->
+                    keyboardInputs
 
         _ ->
             Sub.none
+
+
+keyDecoder : PlayInfo -> Decode.Decoder Msg
+keyDecoder info =
+    case info.state of
+        Playing ->
+            Decode.fail "No keyboardMappings for playing"
+
+        Editing ->
+            Decode.map (\x -> KeyPressed (EditKeyPress x)) Strumming.noteDecoderEditing
+
+        Stopped ->
+            Decode.fail "No keyboard mappings for stopped"
 
 
 
@@ -262,10 +346,49 @@ subscriptions model =
 viewPlayAlong : PlayInfo -> Element Msg
 viewPlayAlong info =
     column []
-        [ viewChords info
-        , viewControls info
-        , SR.view [ centerX, Border.width 1 ] info.rythm info.strumming
+        [ -- viewChords info
+          viewControls info
+        , SR.view [ centerX ] info.strumming
+        , viewEditControls info
         ]
+
+
+viewEditControls : PlayInfo -> Element Msg
+viewEditControls info =
+    let
+        editFinish =
+            viewEditFinish info
+
+        editType =
+            viewEditType info
+
+        inEditor =
+            if info.state == Editing then
+                [ editType ]
+
+            else
+                []
+    in
+    Element.row [ spacing 5 ] ([ editFinish ] ++ inEditor)
+
+
+viewEditFinish : PlayInfo -> Element Msg
+viewEditFinish info =
+    case info.state of
+        Editing ->
+            Element.row [ Element.paddingXY 0 10 ]
+                [ Input.button [] { label = Element.text "Finish", onPress = Just FinishEdit }
+                ]
+
+        _ ->
+            Element.row [ Element.paddingXY 0 10 ]
+                [ Input.button [] { label = Element.text "Edit", onPress = Just Edit }
+                ]
+
+
+viewEditType : PlayInfo -> Element Msg
+viewEditType { strumming, state } =
+    Element.text <| Strumming.editStateLabel strumming
 
 
 viewChords : PlayInfo -> Element Msg
@@ -318,6 +441,9 @@ startStopControl info =
 
         Stopped ->
             controlButton IconSolid.play Start
+
+        Editing ->
+            Element.none
 
 
 controlButton : Icon.Icon -> Msg -> Element Msg
