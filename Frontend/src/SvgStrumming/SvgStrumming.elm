@@ -365,19 +365,9 @@ createImgInfo pattern =
     }
 
 
-defaultPattern1 : Pattern
-defaultPattern1 =
-    { notes = Cl.init (Note Eighth) [ Note Eighth, Note Quater, Note Whole, Note Half, Note Half, Note Quater ]
-    , timeSignature = ( 4, 4 )
-    , bpm = 70
-    , noteTicks = 0
-    , bpmTicks = 0
-    }
-
-
 defaultPattern : Pattern
 defaultPattern =
-    { notes = Cl.init (Note Eighth) [ Note Eighth, Note Quater, Note Quater, Note Whole, Note Half, Note Half ]
+    { notes = Cl.init (Rest Eighth) [ Rest Quater, Rest Half, Rest Whole, Note Whole, Rest Half, Note Half ]
     , timeSignature = ( 4, 4 )
     , bpm = 70
     , noteTicks = 0
