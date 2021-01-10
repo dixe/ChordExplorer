@@ -1,5 +1,6 @@
-port module SvgStrumming.SvgStrumming exposing (Duration(..), EditAction, ImgInfo, Model, Note(..), Pattern, Pos, TimeSignature, editStateLabel, finishEdit, getBarWidth, getNoteDuration, getTotalBars, initModel, lineWidth, noteDecoderEditing, noteWidth, setEdit, stemHeight, stemWidth, tick, tickTime, timeSigWidth, updateAndAdvance, updateBpm, updateCommandKey)
+port module SvgStrumming.SvgStrumming exposing (Duration(..), EditAction, ImgInfo, Model, Note(..), Pattern, Pos, TimeSignature, editStateLabel, finishEdit, getBarWidth, getEditAction, getNoteDuration, getTotalBars, initModel, lineWidth, noteWidth, setEdit, stemHeight, stemWidth, tick, tickTime, timeSigWidth, updateAndAdvance, updateBpm, updateCommandKey)
 
+import Dict
 import Json.Decode as Decode
 import Json.Encode as Encode
 import Utils.NonEmptyCyclicList as Cl
@@ -45,6 +46,12 @@ type EditAction
     | SwitchRest
 
 
+type alias Control =
+    { description : String
+    , action : EditAction
+    }
+
+
 type alias TimeSignature =
     ( Int, Int )
 
@@ -83,6 +90,67 @@ initEditorState =
 -- LOGIC
 
 
+getEditAction : String -> EditAction
+getEditAction string =
+    case Dict.get string controls of
+        Nothing ->
+            None
+
+        Just control ->
+            control.action
+
+
+controls : Dict.Dict String Control
+controls =
+    Dict.fromList
+        [ ( "q"
+          , { action = Change <| Quater
+            , description = "(q)uater"
+            }
+          )
+        , ( "w"
+          , { action = Change <| Whole
+            , description = "(w)hole"
+            }
+          )
+        , ( "h"
+          , { action = Change <| Half
+            , description = "(h)alf"
+            }
+          )
+        , ( "e"
+          , { action = Change <| Eighth
+            , description = "(e)ighth"
+            }
+          )
+        , ( "n"
+          , { action = Add
+            , description = "(n)ew"
+            }
+          )
+        , ( "d"
+          , { action = Delete
+            , description = "(d)elete"
+            }
+          )
+        , ( "r"
+          , { action = SwitchRest
+            , description = "(r)est note switch"
+            }
+          )
+        , ( "ArrowLeft"
+          , { action = Move Left
+            , description = ""
+            }
+          )
+        , ( "ArrowRight"
+          , { action = Move Right
+            , description = ""
+            }
+          )
+        ]
+
+
 editStateLabel : Model -> String
 editStateLabel { editorState } =
     case editorState.editType Whole of
@@ -108,13 +176,6 @@ updateCommandKey ({ pattern, editorState } as model) action =
     case action of
         _ ->
             model
-
-
-
-{-
-   updateAndAdvandeEditing : Model -> EditAction -> Model
-   updateAndAdvandeEditing ({ pattern, editorState } as model) action =
--}
 
 
 updateAndAdvance : Model -> EditAction -> Model
@@ -465,11 +526,6 @@ getBarWidth ({ timeSignature, notes } as pattern) =
 
 
 -- SUBSCRIPTION DECODERS
-
-
-noteDecoderEditing : Decode.Decoder EditAction
-noteDecoderEditing =
-    Decode.map toEditAction (Decode.field "key" Decode.string)
 
 
 toEditAction : String -> EditAction

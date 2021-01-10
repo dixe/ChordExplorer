@@ -182,18 +182,30 @@ keyDecoder : Model -> Decode.Decoder Msg
 keyDecoder info =
     case info.state of
         Playing ->
-            Decode.map (\x -> KeyPressed (PlayingKeyPress x)) keyboardDecoder
+            keyboardPlayStop
 
         Editing ->
-            Decode.map (\x -> KeyPressed (EditKeyPress x)) Strumming.noteDecoderEditing
+            keyboardEditing
 
         Stopped ->
-            Decode.map (\x -> KeyPressed (PlayingKeyPress x)) keyboardDecoder
+            keyboardPlayStop
 
 
-keyboardDecoder : Decode.Decoder PlayingAction
-keyboardDecoder =
-    Decode.map toPlayAction (Decode.field "key" Decode.string)
+keyboardEditing : Decode.Decoder Msg
+keyboardEditing =
+    Decode.oneOf
+        [ Decode.map (\x -> KeyPressed (EditKeyPress x)) editControlsDecoder
+        ]
+
+
+editControlsDecoder : Decode.Decoder Strumming.EditAction
+editControlsDecoder =
+    Decode.map Strumming.getEditAction (Decode.field "key" Decode.string)
+
+
+keyboardPlayStop : Decode.Decoder Msg
+keyboardPlayStop =
+    Decode.map (\x -> KeyPressed (PlayingKeyPress x)) (Decode.map toPlayAction (Decode.field "key" Decode.string))
 
 
 toPlayAction : String -> PlayingAction

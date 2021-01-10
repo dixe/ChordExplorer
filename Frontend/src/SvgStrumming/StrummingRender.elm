@@ -149,11 +149,11 @@ view att model =
         renderBars =
             toRenderBars model.pattern
 
-        new =
+        bars =
             viewRenderBars model { x = 0, y = 0 } renderBars
     in
     column []
-        [ metronomeClickHtml, new, text "Old" ]
+        [ metronomeClickHtml, bars ]
 
 
 viewRenderBars : Model -> Pos -> List (RenderBar msg) -> Element msg
