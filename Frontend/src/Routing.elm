@@ -77,7 +77,7 @@ routeToPage r =
             { title = "PlayAlong"
             , modelIsFun = isPlayAlong
             , toHtmlFun = playAlongPage
-            , model = WithContext (initialzieIsPlayModel (stripMaybe ids))
+            , model = NoContext (PlayAlong_Model PlayAlong.initModel)
             , parseMsg = parseMsgPlayAlong
             , initMsg = playAlongInitMsg
             , getSubscriptions = playAlongSubScriptions
@@ -141,30 +141,6 @@ playAlongSubScriptions model =
 playAlongInitMsg : Cmd Msg
 playAlongInitMsg =
     Cmd.map PlayAlong_Msg PlayAlong.initMsg
-
-
-initialzieIsPlayModel : List Int -> Model -> InnerModel
-initialzieIsPlayModel ids model =
-    let
-        chords =
-            case model.inner of
-                ChordsOverview_Model result ->
-                    case result of
-                        Ok overviewChords ->
-                            List.map mapChord (List.filter (\c -> c.selected) overviewChords)
-
-                        Err _ ->
-                            []
-
-                _ ->
-                    []
-    in
-    PlayAlong_Model (PlayAlong.initModel ids (List.map PlayAlong.toChord chords))
-
-
-mapChord : ChordsOverview.Chord -> PlayAlong.ChordBase ChordsOverview.Msg
-mapChord chord =
-    { id = chord.id, name = chord.name, svg = chord.svg, svgHeight = chord.svgHeight, svgWidth = chord.svgWidth }
 
 
 isPlayAlong : InnerModel -> Bool

@@ -1,6 +1,5 @@
-module Pages.PlayAlong exposing (ChordBase, Model, Msg, initModel, initMsg, page, subscriptions, toChord, update)
+module Pages.PlayAlong exposing (Model, Msg, initModel, initMsg, page, subscriptions, update)
 
-import Api.Api exposing (ApiChord(..), loadChords)
 import Browser.Events
 import Dict exposing (Dict)
 import Element exposing (..)
@@ -22,11 +21,9 @@ import Time
 
 
 type Msg
-    = Init
-    | Start
+    = Start
     | Stop
     | Tick
-    | Loaded (Result String (List (ApiChord Msg)))
     | UpdateBpm Int
     | Edit
     | FinishEdit
@@ -43,19 +40,11 @@ type KeyboardAction
 type PlayingAction
     = StartEdit
     | StartStop
+    | None
 
 
-type Model
-    = UnInitialized (List Int)
-    | LoadError String
-    | PlayAlong PlayInfo
-
-
-type alias PlayInfo =
-    { before : List (Chord Msg)
-    , current : Chord Msg
-    , after : List (Chord Msg)
-    , state : State
+type alias Model =
+    { state : State
     , strumming : Strumming.Model
     }
 
@@ -66,45 +55,9 @@ type State
     | Editing
 
 
-type alias ChordBase msg =
-    { id : Int
-    , name : String
-    , svg : Svg msg
-    , svgHeight : Int
-    , svgWidth : Int
-    }
-
-
-type alias Chord msg =
-    { id : Int
-    , name : String
-    , svg : Svg msg
-    , svgHeight : Int
-    , svgWidth : Int
-    }
-
-
-toChord : ChordBase msg -> Chord msg
-toChord base =
-    { id = base.id, name = base.name, svg = base.svg, svgHeight = base.svgHeight, svgWidth = base.svgWidth }
-
-
-initModel : List Int -> List (Chord a) -> Model
-initModel ids chords =
-    case chords of
-        [] ->
-            UnInitialized ids
-
-        c :: cs ->
-            PlayAlong (newPlayAlong (mapChordMsg c) (List.map mapChordMsg cs))
-
-
-newPlayAlong : Chord Msg -> List (Chord Msg) -> PlayInfo
-newPlayAlong current rest =
-    { current = current
-    , before = []
-    , after = rest
-    , state = defaultState
+initModel : Model
+initModel =
+    { state = defaultState
     , strumming = Strumming.initModel
     }
 
@@ -116,38 +69,14 @@ defaultState =
 
 initMsg : Cmd Msg
 initMsg =
-    Task.perform (\a -> a) (Task.succeed Init)
-
-
-
---TODO call
-
-
-mapChordMsg : Chord a -> Chord Msg
-mapChordMsg chord =
-    let
-        newSvg : Svg Msg
-        newSvg =
-            Svg.map mapSvg chord.svg
-    in
-    { id = chord.id, name = chord.name, svg = newSvg, svgHeight = chord.svgHeight, svgWidth = chord.svgWidth }
-
-
-mapSvg : a -> Msg
-mapSvg _ =
-    Stop
+    Cmd.none
 
 
 page : Model -> Element Msg
 page model =
     let
         body =
-            case model of
-                PlayAlong p ->
-                    viewPlayAlong p
-
-                _ ->
-                    Element.none
+            viewPlayAlong model
     in
     column [ width fill, padding 10 ]
         [ --Font awesome style
@@ -162,160 +91,66 @@ page model =
 -- UPDATE
 
 
-mapPlayInfo : (PlayInfo -> PlayInfo) -> Model -> Model
-mapPlayInfo f model =
-    case model of
-        PlayAlong p ->
-            PlayAlong (f p)
-
-        _ ->
-            model
-
-
-mapPlayInfoCmd : (PlayInfo -> ( PlayInfo, Cmd msg )) -> Model -> ( Model, Cmd msg )
-mapPlayInfoCmd f model =
-    case model of
-        PlayAlong p ->
-            let
-                ( info, cmd ) =
-                    f p
-            in
-            ( PlayAlong info, cmd )
-
-        _ ->
-            ( model, Cmd.none )
-
-
 update : Msg -> Model -> ( Model, Cmd Msg )
-update msg model =
+update msg info =
     case msg of
         Stop ->
-            ( mapPlayInfo (\info -> { info | state = Stopped }) model, Cmd.none )
+            ( { info | state = Stopped }, Cmd.none )
 
         Start ->
-            ( mapPlayInfo (\info -> { info | state = Playing }) model, Cmd.none )
-
-        Init ->
-            case model of
-                UnInitialized (id :: ids) ->
-                    ( model, loadChords (id :: ids) Loaded )
-
-                _ ->
-                    -- TODO redirect to /overview  OR show a message with link to overview
-                    ( model, Cmd.none )
-
-        Loaded apiChords ->
-            ( mapChords apiChords, Cmd.none )
+            ( { info | state = Playing }, Cmd.none )
 
         Tick ->
-            mapPlayInfoCmd updateBeat model
+            updateBeat info
 
         UpdateBpm bpm ->
-            ( mapPlayInfo (\info -> { info | strumming = Strumming.updateBpm info.strumming bpm }) model, Cmd.none )
+            ( { info | strumming = Strumming.updateBpm info.strumming bpm }, Cmd.none )
 
         Edit ->
-            ( mapPlayInfo (\info -> { info | state = Editing, strumming = Strumming.setEdit info.strumming }) model, Cmd.none )
+            ( { info | state = Editing, strumming = Strumming.setEdit info.strumming }, Cmd.none )
 
         FinishEdit ->
-            ( mapPlayInfo (\info -> { info | state = Stopped, strumming = Strumming.finishEdit info.strumming }) model, Cmd.none )
+            ( { info | state = Stopped, strumming = Strumming.finishEdit info.strumming }, Cmd.none )
 
         KeyPressed action ->
-            handelKeyboard model action
+            handleKeyboard info action
 
-        --                ( mapPlayInfo (\info -> { info | strumming = Strumming.updateAndAdvance info.strumming note }) model, Cmd.none )
         KeyDown action ->
-            handelKeyboard model action
+            handleKeyboard info action
 
-        --( mapPlayInfo (\info -> { info | strumming = Strumming.updateCommandKey info.strumming note }) model, Cmd.none )
         KeyUp action ->
-            handelKeyboard model action
+            handleKeyboard info action
 
 
-
---( mapPlayInfo (\info -> { info | strumming = Strumming.updateCommandKey info.strumming note }) model, Cmd.none )
-
-
-handelKeyboard : Model -> KeyboardAction -> ( Model, Cmd msg )
-handelKeyboard model action =
+handleKeyboard : Model -> KeyboardAction -> ( Model, Cmd msg )
+handleKeyboard model action =
+    let
+        d =
+            Debug.log "model, action" ( model, action )
+    in
     case action of
         EditKeyPress a ->
-            ( mapPlayInfo (\info -> { info | strumming = Strumming.updateAndAdvance info.strumming a }) model, Cmd.none )
+            ( { model | strumming = Strumming.updateAndAdvance model.strumming a }, Cmd.none )
 
         PlayingKeyPress a ->
-            ( model, Cmd.none )
+            case a of
+                StartEdit ->
+                    ( { model | state = Editing }, Cmd.none )
+
+                None ->
+                    ( model, Cmd.none )
+
+                StartStop ->
+                    ( model, Cmd.none )
 
 
-
-{-
-   case model of
-       PlayAlong info ->
-           case action of
-               EditKeyPress a ->
-                   ( mapPlayInfo (\i -> { i | strumming = Strumming.updateAndAdvance info.strumming note }) model, Cmd.none )
-
-       _ ->
-           model
-
--}
--- TODO stop ticking when no chords loaded
-
-
-mapChords : Result String (List (ApiChord Msg)) -> Model
-mapChords res =
-    case res of
-        Err err ->
-            LoadError err
-
-        Ok apiChords ->
-            case List.map mapChord apiChords of
-                [] ->
-                    LoadError "No chords loaded"
-
-                c :: cs ->
-                    PlayAlong (newPlayAlong (mapChordMsg c) (List.map mapChordMsg cs))
-
-
-mapChord : ApiChord Msg -> Chord Msg
-mapChord (ApiChord c) =
-    { id = c.id, name = c.name, svg = c.svg.svg, svgHeight = round c.svg.height, svgWidth = round c.svg.width }
-
-
-updateBeat : PlayInfo -> ( PlayInfo, Cmd msg )
+updateBeat : Model -> ( Model, Cmd msg )
 updateBeat info =
     let
         ( strumming, changed, cmd ) =
             Strumming.tick info.strumming
-
-        newInfo =
-            if changed then
-                nextChord info
-
-            else
-                info
     in
-    ( { newInfo | strumming = strumming }, cmd )
-
-
-nextChord : PlayInfo -> PlayInfo
-nextChord ({ before, current, after } as info) =
-    case after of
-        next :: rest ->
-            let
-                bf =
-                    before ++ [ current ]
-
-                cur =
-                    next
-            in
-            { info | before = bf, current = cur, after = rest }
-
-        [] ->
-            case before of
-                [] ->
-                    info
-
-                b :: rest ->
-                    { info | before = [], current = b, after = rest ++ [ current ] }
+    ( { info | strumming = strumming }, cmd )
 
 
 
@@ -323,49 +158,66 @@ nextChord ({ before, current, after } as info) =
 
 
 subscriptions : Model -> Sub Msg
-subscriptions model =
-    case model of
-        PlayAlong info ->
-            let
-                keyboardInputs =
-                    Browser.Events.onKeyUp <| keyDecoder info
-            in
-            case info.state of
-                Playing ->
-                    -- Maybe put tickTime into model
-                    Sub.batch
-                        [ Time.every (Strumming.tickTime info.strumming) (\_ -> Tick)
-                        , keyboardInputs
-                        ]
+subscriptions info =
+    let
+        keyboardInputs =
+            Browser.Events.onKeyUp <| keyDecoder info
+    in
+    case info.state of
+        Playing ->
+            -- Maybe put tickTime into model
+            Sub.batch
+                [ Time.every (Strumming.tickTime info.strumming) (\_ -> Tick)
+                , keyboardInputs
+                ]
 
-                Stopped ->
-                    keyboardInputs
+        Stopped ->
+            keyboardInputs
 
-                Editing ->
-                    keyboardInputs
-
-        _ ->
-            Sub.none
+        Editing ->
+            keyboardInputs
 
 
-keyDecoder : PlayInfo -> Decode.Decoder Msg
+keyDecoder : Model -> Decode.Decoder Msg
 keyDecoder info =
     case info.state of
         Playing ->
-            Decode.fail "No keyboardMappings for playing"
+            Decode.map (\x -> KeyPressed (PlayingKeyPress x)) keyboardDecoder
 
         Editing ->
             Decode.map (\x -> KeyPressed (EditKeyPress x)) Strumming.noteDecoderEditing
 
         Stopped ->
-            Decode.fail "No keyboard mappings for stopped"
+            Decode.map (\x -> KeyPressed (PlayingKeyPress x)) keyboardDecoder
+
+
+keyboardDecoder : Decode.Decoder PlayingAction
+keyboardDecoder =
+    Decode.map toPlayAction (Decode.field "key" Decode.string)
+
+
+toPlayAction : String -> PlayingAction
+toPlayAction string =
+    let
+        d =
+            Debug.log "keyString " string
+    in
+    case string of
+        "spacebar" ->
+            StartStop
+
+        "e" ->
+            StartEdit
+
+        _ ->
+            None
 
 
 
 -- VIEW
 
 
-viewPlayAlong : PlayInfo -> Element Msg
+viewPlayAlong : Model -> Element Msg
 viewPlayAlong info =
     column []
         [ -- viewChords info
@@ -375,7 +227,7 @@ viewPlayAlong info =
         ]
 
 
-viewEditControls : PlayInfo -> Element Msg
+viewEditControls : Model -> Element Msg
 viewEditControls info =
     let
         editFinish =
@@ -394,7 +246,7 @@ viewEditControls info =
     Element.row [ spacing 5 ] ([ editFinish ] ++ inEditor)
 
 
-viewEditFinish : PlayInfo -> Element Msg
+viewEditFinish : Model -> Element Msg
 viewEditFinish info =
     case info.state of
         Editing ->
@@ -408,45 +260,12 @@ viewEditFinish info =
                 ]
 
 
-viewEditType : PlayInfo -> Element Msg
+viewEditType : Model -> Element Msg
 viewEditType { strumming, state } =
     Element.text <| Strumming.editStateLabel strumming
 
 
-viewChords : PlayInfo -> Element Msg
-viewChords info =
-    let
-        before =
-            List.map (viewChord []) info.before
-
-        current =
-            viewChord currentAttribs info.current
-
-        after =
-            List.map (viewChord []) info.after
-    in
-    wrappedRow [ spacing 10, padding 10 ] (before ++ [ current ] ++ after)
-
-
-viewChord : List (Element.Attribute Msg) -> Chord Msg -> Element Msg
-viewChord attribs c =
-    let
-        viewHeight =
-            c.svgHeight
-
-        viewWidth =
-            c.svgWidth
-    in
-    --TODO maybe set height and width, so all elements will be the same
-    column
-        ([ Border.solid, Border.width 2, Border.rounded 40, padding 2 ]
-            ++ attribs
-        )
-        [ viewSvg c.svgHeight c.svg
-        ]
-
-
-viewControls : PlayInfo -> Element Msg
+viewControls : Model -> Element Msg
 viewControls info =
     let
         startStop =
@@ -455,7 +274,7 @@ viewControls info =
     Element.row [ centerX, padding 10, spacing 10 ] [ startStop, tempoControl info ]
 
 
-startStopControl : PlayInfo -> Element Msg
+startStopControl : Model -> Element Msg
 startStopControl info =
     case info.state of
         Playing ->
@@ -477,7 +296,7 @@ controlButton icon msg =
     Input.button (controlButtonAttribs ++ [ Background.color startTopBackground ]) { label = iconElm, onPress = Just msg }
 
 
-tempoControl : PlayInfo -> Element Msg
+tempoControl : Model -> Element Msg
 tempoControl info =
     Input.slider
         [ Element.height (Element.px 30)
