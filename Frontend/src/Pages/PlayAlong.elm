@@ -19,8 +19,6 @@ import SvgStrumming.StrummingRender as SR
 import SvgStrumming.SvgStrumming as Strumming
 import Task
 import Time
-import Utils.NonEmptyCyclicList as Cl
-import Utils.Rythm as Rythm
 
 
 type Msg
@@ -54,10 +52,11 @@ type Model
 
 
 type alias PlayInfo =
-    { chords : Cl.NonEmptyCyclicList (Chord Msg)
+    { before : List (Chord Msg)
+    , current : Chord Msg
+    , after : List (Chord Msg)
     , state : State
     , strumming : Strumming.Model
-    , rythm : Strumming.Rythm
     }
 
 
@@ -102,10 +101,11 @@ initModel ids chords =
 
 newPlayAlong : Chord Msg -> List (Chord Msg) -> PlayInfo
 newPlayAlong current rest =
-    { chords = Cl.init current rest
+    { current = current
+    , before = []
+    , after = rest
     , state = defaultState
-    , strumming = SR.initModel Rythm.defaultRythm
-    , rythm = Rythm.defaultRythm
+    , strumming = Strumming.initModel
     }
 
 
@@ -211,7 +211,7 @@ update msg model =
             mapPlayInfoCmd updateBeat model
 
         UpdateBpm bpm ->
-            ( mapPlayInfo (\info -> { info | rythm = Rythm.updateBpm info.rythm bpm }) model, Cmd.none )
+            ( mapPlayInfo (\info -> { info | strumming = Strumming.updateBpm info.strumming bpm }) model, Cmd.none )
 
         Edit ->
             ( mapPlayInfo (\info -> { info | state = Editing, strumming = Strumming.setEdit info.strumming }) model, Cmd.none )
@@ -283,17 +283,39 @@ mapChord (ApiChord c) =
 updateBeat : PlayInfo -> ( PlayInfo, Cmd msg )
 updateBeat info =
     let
-        ( rythm, changed, cmd ) =
-            Rythm.tick info.rythm
+        ( strumming, changed, cmd ) =
+            Strumming.tick info.strumming
 
         newInfo =
             if changed then
-                { info | chords = Cl.next info.chords }
+                nextChord info
 
             else
                 info
     in
-    ( { newInfo | rythm = rythm }, cmd )
+    ( { newInfo | strumming = strumming }, cmd )
+
+
+nextChord : PlayInfo -> PlayInfo
+nextChord ({ before, current, after } as info) =
+    case after of
+        next :: rest ->
+            let
+                bf =
+                    before ++ [ current ]
+
+                cur =
+                    next
+            in
+            { info | before = bf, current = cur, after = rest }
+
+        [] ->
+            case before of
+                [] ->
+                    info
+
+                b :: rest ->
+                    { info | before = [], current = b, after = rest ++ [ current ] }
 
 
 
@@ -395,13 +417,13 @@ viewChords : PlayInfo -> Element Msg
 viewChords info =
     let
         before =
-            List.map (viewChord []) info.chords.before
+            List.map (viewChord []) info.before
 
         current =
-            viewChord currentAttribs info.chords.current
+            viewChord currentAttribs info.current
 
         after =
-            List.map (viewChord []) info.chords.after
+            List.map (viewChord []) info.after
     in
     wrappedRow [ spacing 10, padding 10 ] (before ++ [ current ] ++ after)
 
@@ -475,11 +497,11 @@ tempoControl info =
         { onChange = round >> UpdateBpm
         , label =
             Input.labelAbove []
-                (text ("Bpm: " ++ String.fromInt info.rythm.bpm))
+                (text ("Bpm: " ++ String.fromInt info.strumming.pattern.bpm))
         , min = 60
         , max = 200
         , step = Just 1
-        , value = toFloat info.rythm.bpm
+        , value = toFloat info.strumming.pattern.bpm
         , thumb =
             Input.defaultThumb
         }
