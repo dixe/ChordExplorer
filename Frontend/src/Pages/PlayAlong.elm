@@ -30,6 +30,7 @@ type Msg
     | KeyPressed KeyboardAction
     | KeyDown KeyboardAction
     | KeyUp KeyboardAction
+    | EditButton Strumming.EditAction
 
 
 type KeyboardAction
@@ -92,34 +93,37 @@ page model =
 
 
 update : Msg -> Model -> ( Model, Cmd Msg )
-update msg info =
+update msg model =
     case msg of
         Stop ->
-            ( { info | state = Stopped }, Cmd.none )
+            ( { model | state = Stopped }, Cmd.none )
 
         Start ->
-            ( { info | state = Playing }, Cmd.none )
+            ( { model | state = Playing }, Cmd.none )
 
         Tick ->
-            updateBeat info
+            updateBeat model
 
         UpdateBpm bpm ->
-            ( { info | strumming = Strumming.updateBpm info.strumming bpm }, Cmd.none )
+            ( { model | strumming = Strumming.updateBpm model.strumming bpm }, Cmd.none )
 
         Edit ->
-            ( { info | state = Editing, strumming = Strumming.setEdit info.strumming }, Cmd.none )
+            ( { model | state = Editing, strumming = Strumming.setEdit model.strumming }, Cmd.none )
 
         FinishEdit ->
-            ( { info | state = Stopped, strumming = Strumming.finishEdit info.strumming }, Cmd.none )
+            ( { model | state = Stopped, strumming = Strumming.finishEdit model.strumming }, Cmd.none )
 
         KeyPressed action ->
-            handleKeyboard info action
+            handleKeyboard model action
 
         KeyDown action ->
-            handleKeyboard info action
+            handleKeyboard model action
 
         KeyUp action ->
-            handleKeyboard info action
+            handleKeyboard model action
+
+        EditButton action ->
+            ( { model | strumming = Strumming.updateAndAdvance model.strumming action }, Cmd.none )
 
 
 handleKeyboard : Model -> KeyboardAction -> ( Model, Cmd msg )
@@ -231,9 +235,8 @@ toPlayAction string =
 
 viewPlayAlong : Model -> Element Msg
 viewPlayAlong info =
-    column []
-        [ -- viewChords info
-          viewControls info
+    column [ spacing 5 ]
+        [ viewControls info
         , SR.view [ centerX ] info.strumming
         , viewEditControls info
         ]
@@ -250,26 +253,37 @@ viewEditControls info =
 
         inEditor =
             if info.state == Editing then
-                [ editType ]
+                editControls info
 
             else
-                []
+                Element.none
     in
-    Element.row [ spacing 5 ] ([ editFinish ] ++ inEditor)
+    Element.row [ spacing 5 ] [ editFinish, inEditor ]
+
+
+editControls : Model -> Element Msg
+editControls model =
+    Element.row [ spacing 5 ] (List.map viewControl (Dict.toList Strumming.controls))
+
+
+viewControl : ( String, Strumming.Control ) -> Element Msg
+viewControl ( key, control ) =
+    case control.description of
+        Nothing ->
+            Element.none
+
+        Just d ->
+            button (Just (KeyPressed (EditKeyPress control.action))) (Element.text d)
 
 
 viewEditFinish : Model -> Element Msg
 viewEditFinish info =
     case info.state of
         Editing ->
-            Element.row [ Element.paddingXY 0 10 ]
-                [ Input.button [] { label = Element.text "Finish", onPress = Just FinishEdit }
-                ]
+            button (Just FinishEdit) (Element.text "Finish")
 
         _ ->
-            Element.row [ Element.paddingXY 0 10 ]
-                [ Input.button [] { label = Element.text "Edit", onPress = Just Edit }
-                ]
+            button (Just Edit) (Element.text "Edit")
 
 
 viewEditType : Model -> Element Msg
@@ -368,3 +382,17 @@ playColor =
 startTopBackground : Color
 startTopBackground =
     Element.rgb255 200 200 200
+
+
+buttonBackground : Color
+buttonBackground =
+    Element.rgb255 200 200 200
+
+
+
+-- HELPER
+
+
+button : Maybe Msg -> Element Msg -> Element Msg
+button onPress label =
+    Input.button [ spacing 5, padding 5, Border.rounded 10, Background.color buttonBackground ] { label = label, onPress = onPress }

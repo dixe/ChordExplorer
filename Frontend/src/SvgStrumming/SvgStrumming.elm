@@ -1,4 +1,4 @@
-port module SvgStrumming.SvgStrumming exposing (Duration(..), EditAction, ImgInfo, Model, Note(..), Pattern, Pos, TimeSignature, editStateLabel, finishEdit, getBarWidth, getEditAction, getNoteDuration, getTotalBars, initModel, lineWidth, noteWidth, setEdit, stemHeight, stemWidth, tick, tickTime, timeSigWidth, updateAndAdvance, updateBpm, updateCommandKey)
+port module SvgStrumming.SvgStrumming exposing (Control, Duration(..), EditAction, ImgInfo, Model, Note(..), Pattern, Pos, TimeSignature, controls, editStateLabel, finishEdit, getBarWidth, getEditAction, getNoteDuration, getTotalBars, initModel, lineWidth, noteWidth, setEdit, stemHeight, stemWidth, tick, tickTime, timeSigWidth, updateAndAdvance, updateBpm, updateCommandKey)
 
 import Dict
 import Json.Decode as Decode
@@ -47,7 +47,7 @@ type EditAction
 
 
 type alias Control =
-    { description : String
+    { description : Maybe String
     , action : EditAction
     }
 
@@ -105,47 +105,47 @@ controls =
     Dict.fromList
         [ ( "q"
           , { action = Change <| Quater
-            , description = "(q)uater"
+            , description = Just "(q)uater"
             }
           )
         , ( "w"
           , { action = Change <| Whole
-            , description = "(w)hole"
+            , description = Just "(w)hole"
             }
           )
         , ( "h"
           , { action = Change <| Half
-            , description = "(h)alf"
+            , description = Just "(h)alf"
             }
           )
         , ( "e"
           , { action = Change <| Eighth
-            , description = "(e)ighth"
+            , description = Just "(e)ighth"
             }
           )
         , ( "n"
           , { action = Add
-            , description = "(n)ew"
+            , description = Just "(n)ew"
             }
           )
         , ( "d"
           , { action = Delete
-            , description = "(d)elete"
+            , description = Just "(d)elete"
             }
           )
         , ( "r"
           , { action = SwitchRest
-            , description = "(r)est note switch"
+            , description = Just "(r)est note switch"
             }
           )
         , ( "ArrowLeft"
           , { action = Move Left
-            , description = ""
+            , description = Just <| (String.fromChar <| Char.fromCode 8592)
             }
           )
         , ( "ArrowRight"
           , { action = Move Right
-            , description = ""
+            , description = Just <| (String.fromChar <| Char.fromCode 8594)
             }
           )
         ]
