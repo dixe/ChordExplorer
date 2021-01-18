@@ -1,4 +1,4 @@
-module Utils.NonEmptyCyclicList exposing (NonEmptyCyclicList, add, advanceToNew, cur, delete, getAll, init, left, map, mapWithCurrent, next, right, setCurrent, toList, toListWithCurrent, updateCurrent)
+module Utils.NonEmptyCyclicList exposing (NonEmptyCyclicList, add, advanceToNew, cur, delete, getAll, init, left, map, mapWithCurrent, next, nextOrNew, right, setCurrent, toList, toListWithCurrent, updateCurrent)
 
 
 type alias NonEmptyCyclicList a =
@@ -56,6 +56,16 @@ next ({ before, current, after } as pattern) =
 
                 b :: bs ->
                     { pattern | current = b, before = [], after = bs ++ [ current ] }
+
+
+nextOrNew : a -> NonEmptyCyclicList a -> NonEmptyCyclicList a
+nextOrNew new ({ before, current, after } as pattern) =
+    case after of
+        a :: afters ->
+            { pattern | before = before ++ [ current ], current = a, after = afters }
+
+        [] ->
+            { pattern | current = new, before = before ++ [ current ] }
 
 
 delete : NonEmptyCyclicList a -> NonEmptyCyclicList a

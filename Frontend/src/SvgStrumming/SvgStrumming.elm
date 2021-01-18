@@ -1,4 +1,4 @@
-port module SvgStrumming.SvgStrumming exposing (Control, Duration(..), EditAction, ImgInfo, Model, Note(..), Pattern, Pos, TimeSignature, controls, editStateLabel, finishEdit, getBarWidth, getEditAction, getNoteDuration, getTotalBars, initModel, lineWidth, noteWidth, setEdit, stemHeight, stemWidth, tick, tickTime, timeSigWidth, updateAndAdvance, updateBpm, updateCommandKey)
+port module SvgStrumming.SvgStrumming exposing (Control, Duration(..), EditAction, ImgInfo, Model, Note(..), Pattern, Pos, TimeSignature, beatWidth, controls, editStateLabel, finishEdit, getBarHeight, getBarWidth, getEditAction, getNoteDuration, getTotalBars, initModel, lineWidth, noteWidth, setEdit, stemHeight, stemWidth, tick, tickTime, timeSigWidth, updateAndAdvance, updateBpm, updateCommandKey)
 
 import Dict
 import Json.Decode as Decode
@@ -28,6 +28,8 @@ type alias Pos =
 type alias ImgInfo =
     { imgHeight : Float
     , imgWidth : Float
+    , viewPortWidth : Float
+    , viewPortHeight : Float
     }
 
 
@@ -182,7 +184,7 @@ updateAndAdvance : Model -> EditAction -> Model
 updateAndAdvance ({ pattern, editorState } as model) action =
     case action of
         Change d ->
-            { model | pattern = { pattern | notes = Cl.next <| Cl.updateCurrent (updateNoteDuration d) pattern.notes } }
+            { model | pattern = { pattern | notes = Cl.nextOrNew (Note Quater) <| Cl.updateCurrent (updateNoteDuration d) pattern.notes } }
 
         Add ->
             let
@@ -352,22 +354,32 @@ createImgInfo pattern =
             toFloat <| getTotalBars pattern
 
         barsWidth =
-            bars * getBarWidth pattern
+            bars * getBarWidth (getBeats pattern)
+
+        viewPortWidth =
+            1900
 
         imgWidth =
-            timeSigWidth + barsWidth
+            min
+                (timeSigWidth + barsWidth)
+                viewPortWidth
+
+        barHeight =
+            getBarHeight
 
         imgHeight =
-            100
+            barHeight * toFloat (ceiling (barsWidth / viewPortWidth))
     in
     { imgHeight = imgHeight
     , imgWidth = imgWidth
+    , viewPortWidth = 1920
+    , viewPortHeight = 1080
     }
 
 
 defaultPattern : Pattern
 defaultPattern =
-    { notes = Cl.init (Rest Eighth) [ Rest Quater, Rest Half, Rest Whole, Note Whole, Rest Half, Note Half ]
+    { notes = Cl.init (Note Quater) [ Rest Quater, Rest Half, Rest Whole, Note Whole, Rest Half, Note Half, Note Quater, Note Whole, Note Eighth, Note Quater, Note Whole, Note Quater ]
     , timeSignature = ( 4, 4 )
     , bpm = 70
     , noteTicks = 0
@@ -505,13 +517,19 @@ getTotalBars ({ timeSignature, notes } as pattern) =
     getTotalBeats pattern // Tuple.first pattern.timeSignature
 
 
-getBarWidth : Pattern -> Float
-getBarWidth ({ timeSignature, notes } as pattern) =
-    let
-        beats =
-            toFloat <| Tuple.first timeSignature
-    in
-    timeSigWidth + beats * 2 * noteWidth + lineWidth
+getBeats : Pattern -> Float
+getBeats { timeSignature, notes } =
+    toFloat <| Tuple.first timeSignature
+
+
+getBarWidth : Float -> Float
+getBarWidth beats =
+    noteWidth + beatWidth * beats + lineWidth
+
+
+getBarHeight : Float
+getBarHeight =
+    100 + lineWidth * 2
 
 
 
@@ -563,6 +581,11 @@ toEditAction string =
 lineWidth : Float
 lineWidth =
     4
+
+
+beatWidth : Float
+beatWidth =
+    noteWidth * 2
 
 
 timeSigWidth : Float

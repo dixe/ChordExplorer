@@ -7,7 +7,7 @@ import Html.Attributes as HtmlAttributes
 import Svg exposing (Attribute, Svg, circle, node, rect, svg)
 import Svg.Attributes as SA exposing (..)
 import Svg.Events exposing (..)
-import SvgStrumming.RenderNotes as RN exposing (beatWidth)
+import SvgStrumming.RenderNotes as RN
 import SvgStrumming.SvgStrumming exposing (..)
 import Utils.NonEmptyCyclicList as Cl
 
@@ -133,13 +133,13 @@ viewRenderBars ({ info } as model) initPos bars =
             renderBarsToSvg model initPos bars
 
         renderBox =
-            renderRythmBox <| posAddY endPos info.imgHeight
-
-        middleLine =
-            renderMiddleLine <| posAddY endPos info.imgHeight
+            renderRythmBox info
 
         svgWidth =
-            endPos.x
+            info.imgWidth
+
+        d =
+            debug "info" info
     in
     html <|
         svg
@@ -147,46 +147,46 @@ viewRenderBars ({ info } as model) initPos bars =
             , height (String.fromFloat info.imgHeight)
             , viewBox ("0 0 " ++ String.fromFloat svgWidth ++ " " ++ String.fromFloat info.imgHeight)
             ]
-            (middleLine
-                ++ svgList
+            (svgList
                 ++ renderBox
             )
 
 
-renderMiddleLine : Pos -> List (Svg msg)
-renderMiddleLine pos =
+renderMiddleLine : ImgInfo -> Pos -> Pos -> List (Svg msg)
+renderMiddleLine info start end =
     [ Svg.rect
-        [ width (String.fromFloat pos.x)
+        [ width (String.fromFloat (end.x - start.x))
         , height (String.fromFloat lineWidth)
-        , y (String.fromFloat (pos.y / 2))
+        , y (String.fromFloat (start.y + (getBarHeight / 2)))
+        , x (String.fromFloat start.x)
         , fill "gray"
         ]
         []
     ]
 
 
-renderRythmBox : Pos -> List (Svg msg)
-renderRythmBox pos =
+renderRythmBox : ImgInfo -> List (Svg msg)
+renderRythmBox { imgWidth, imgHeight } =
     [ Svg.rect
-        [ width <| String.fromFloat pos.x
+        [ width <| String.fromFloat imgWidth
         , height "1"
         ]
         []
     , Svg.rect
-        [ width <| String.fromFloat pos.x
+        [ width <| String.fromFloat imgWidth
         , height "1"
-        , y <| String.fromFloat (pos.y - 1)
+        , y <| String.fromFloat (imgHeight - 1)
         ]
         []
     , Svg.rect
-        [ height <| String.fromFloat pos.y
+        [ height <| String.fromFloat imgHeight
         , width "1"
         ]
         []
     , Svg.rect
-        [ height <| String.fromFloat pos.y
+        [ height <| String.fromFloat imgHeight
         , width "1"
-        , x <| String.fromFloat (pos.x - 1)
+        , x <| String.fromFloat (imgWidth - 1)
         ]
         []
     ]
@@ -206,12 +206,25 @@ renderBarsToSvg model initPos bars =
                 ( notes, _ ) =
                     RN.renderNotes model (posAddX initPos (b.beatOffset * beatWidth + noteWidth)) b.notes
 
+                middleLine =
+                    renderMiddleLine model.info initPos nextStart
+
+                updatedStart =
+                    if model.info.viewPortWidth > (posAddX nextStart (getBarWidth b.beats)).x then
+                        nextStart
+
+                    else
+                        { x = 0, y = nextStart.y + getBarHeight }
+
+                d =
+                    debug "vWidth, next" ( model.info.viewPortWidth, updatedStart )
+
                 fullBar =
-                    barLines ++ notes
+                    middleLine ++ barLines ++ notes
             in
             let
                 ( remBars, end ) =
-                    renderBarsToSvg model nextStart bs
+                    renderBarsToSvg model updatedStart bs
             in
             ( fullBar ++ remBars, end )
 
@@ -219,30 +232,34 @@ renderBarsToSvg model initPos bars =
 renderSingleBarLines : ImgInfo -> Pos -> Float -> Bool -> ( List (Svg msg), Pos )
 renderSingleBarLines info pos beats isLast =
     let
-        line : Float -> Svg msg
-        line xStart =
+        line : Pos -> Svg msg
+        line start =
             Svg.rect
                 [ width (String.fromFloat lineWidth)
-                , height (String.fromFloat info.imgHeight)
-                , x (String.fromFloat xStart)
+                , height (String.fromFloat getBarHeight)
+                , x (String.fromFloat start.x)
+                , y (String.fromFloat start.y)
                 ]
                 []
 
-        barWidth =
-            noteWidth + beatWidth * beats + lineWidth
-
         lineStart =
-            line pos.x
+            line pos
+
+        nextStart =
+            posAddX pos (getBarWidth beats)
+
+        d =
+            debug "nextStart2" ((posAddX nextStart (getBarWidth beats)).x >= info.imgWidth)
 
         lineEnd =
-            if isLast then
-                [ line <| pos.x + barWidth - lineWidth
+            if isLast || (posAddX nextStart (getBarWidth beats)).x >= info.imgWidth then
+                [ line <| posAddX pos (getBarWidth beats)
                 ]
 
             else
                 []
     in
-    ( [ lineStart ] ++ lineEnd, posAdd pos { x = barWidth, y = 0 } )
+    ( [ lineStart ] ++ lineEnd, nextStart )
 
 
 

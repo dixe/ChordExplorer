@@ -1,13 +1,8 @@
-module SvgStrumming.RenderNotes exposing (RenderFunc, RenderNote, beatWidth, getRenderF, renderNotes)
+module SvgStrumming.RenderNotes exposing (RenderFunc, RenderNote, getRenderF, renderNotes)
 
 import Svg exposing (Attribute, Svg, circle, node, rect, svg)
 import Svg.Attributes as SA exposing (..)
 import SvgStrumming.SvgStrumming exposing (..)
-
-
-beatWidth : Float
-beatWidth =
-    noteWidth * 2
 
 
 type alias RenderFunc msg =
@@ -82,7 +77,7 @@ renderNote { info } pos { renderF, isCurrent, beatsDuration } =
                 []
 
         svg =
-            renderF attribs info <| posAddY pos (info.imgHeight / 2)
+            renderF attribs info <| posAddY pos (getBarHeight / 2)
     in
     ( svg, posAddX pos (beatWidth * beatsDuration) )
 
